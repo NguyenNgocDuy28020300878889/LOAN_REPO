@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Loan — UX prototype</title>
+    <style>
+      :root { --blue:#1769e0; --navy:#10213d; --ink:#172033; --muted:#657087; --line:#dfe5ee; --soft:#f4f7fb; --success:#087c5c; --danger:#bb2b3d; }
+      * { box-sizing:border-box; } body { margin:0; background:#e8eef7; color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+      button,input { font:inherit; } button { min-height:48px; border:0; border-radius:14px; cursor:pointer; font-weight:700; } input { width:100%; min-height:52px; padding:0 16px; border:1px solid var(--line); border-radius:14px; color:var(--ink); font-size:16px; }
+      .phone { width:min(100%,390px); min-height:844px; margin:24px auto; background:#fff; position:relative; overflow:hidden; box-shadow:0 24px 70px rgba(26,61,108,.18); }
+      .screen { display:none; min-height:844px; padding:28px 24px 112px; } .screen.active { display:block; }
+      .top { display:flex; justify-content:space-between; align-items:center; margin-bottom:40px; } .wordmark { color:var(--navy); font-size:22px; font-weight:800; letter-spacing:-.8px; } .close { min-height:44px; width:44px; background:var(--soft); color:var(--navy); font-size:22px; }
+      h1 { font-size:30px; line-height:1.12; letter-spacing:-1px; margin:0 0 12px; } h2 { font-size:21px; margin:0 0 16px; } p { color:var(--muted); line-height:1.5; margin:0; } .eyebrow { color:var(--blue); font-weight:800; font-size:13px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:12px; }
+      .empty { padding-top:156px; text-align:center; } .empty-icon { width:80px; height:80px; display:grid; place-items:center; margin:0 auto 24px; border-radius:28px; background:#eaf2ff; font-size:36px; }
+      .bottom { position:absolute; left:24px; right:24px; bottom:32px; } .primary { width:100%; background:var(--blue); color:#fff; box-shadow:0 10px 24px rgba(23,105,224,.22), inset 0 1px rgba(255,255,255,.28); } .secondary { background:#eaf2ff; color:var(--blue); } .split { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+      .choice { width:100%; min-height:104px; padding:16px; border:1px solid var(--line); border-radius:18px; background:#fff; text-align:left; color:var(--ink); margin:12px 0 0; } .choice.selected { border:2px solid var(--blue); background:#f3f7ff; } .choice span { display:block; color:var(--muted); font-size:13px; font-weight:500; margin-top:6px; }
+      .field { margin-top:20px; } label { display:block; font-weight:750; font-size:14px; margin:0 0 8px; } .currency { display:grid; grid-template-columns:1fr 80px; gap:8px; } .currency div { display:grid; place-items:center; border:1px solid var(--line); border-radius:14px; font-weight:750; }
+      .date-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; } .datebox { background:var(--soft); border-radius:14px; padding:14px; font-weight:700; line-height:1.3; } .datebox small { display:block; color:var(--muted); font-size:12px; font-weight:600; margin-bottom:4px; }
+      .review { background:#f7faff; border:1px solid #d9e7ff; border-radius:20px; padding:24px; text-align:center; margin-top:28px; } .people { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; } .person { width:116px; font-size:13px; font-weight:800; } .avatar { width:44px; height:44px; display:grid; place-items:center; margin:0 auto 8px; border-radius:50%; background:#d9e7ff; color:var(--blue); } .role { color:var(--muted); font-size:11px; letter-spacing:.05em; margin-top:4px; } .flow { color:var(--blue); font-size:28px; padding-top:6px; } .amount { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:var(--navy); font-size:38px; font-weight:800; letter-spacing:-2px; margin:28px 0 8px; }
+      .notice { display:flex; gap:12px; margin-top:24px; padding:16px; background:#fff8e9; border-radius:14px; color:#705214; font-size:14px; line-height:1.4; } .notice b { font-size:18px; }
+      .status { display:inline-flex; gap:8px; align-items:center; background:#e9f8f2; color:var(--success); border-radius:20px; padding:8px 12px; font-size:12px; font-weight:800; } .summary { background:var(--navy); color:#fff; margin:0 -24px; padding:32px 24px; } .summary .amount { color:#fff; margin:8px 0; } .summary p { color:#c7d4e8; } .progress { height:8px; margin-top:20px; background:#2d4161; border-radius:8px; overflow:hidden; } .progress i { display:block; width:0%; height:100%; background:#76c7ff; } .room-meta { display:flex; justify-content:space-between; font-size:13px; margin-top:12px; color:#c7d4e8; }
+      .timeline { margin-top:32px; } .event { position:relative; padding:0 0 24px 28px; border-left:2px solid var(--line); margin-left:8px; font-size:14px; } .event:before { content:""; position:absolute; left:-7px; top:3px; width:12px; height:12px; border-radius:50%; background:var(--blue); } .event small { display:block; color:var(--muted); margin-top:4px; }
+      .success { padding-top:170px; text-align:center; } .success-icon { width:80px; height:80px; display:grid; place-items:center; margin:0 auto 24px; border-radius:50%; background:#e9f8f2; color:var(--success); font-size:38px; }
+      @media (max-width:440px) { .phone { margin:0; width:100%; min-height:100vh; } .screen { min-height:100vh; } }
+    </style>
+  </head>
+  <body>
+    <main class="phone" aria-label="Loan mobile UX prototype">
+      <section id="home" class="screen active">
+        <div class="top"><div class="wordmark">Loan</div><button class="close" aria-label="Profile">☻</button></div>
+        <div class="empty"><div class="empty-icon" aria-hidden="true">↔</div><h1>One clear record,<br />shared by two.</h1><p>Keep a loan, its due date, and repayments in one place.</p></div>
+        <div class="bottom"><button class="primary" onclick="go('create')">＋ Create a loan</button></div>
+      </section>
+
+      <section id="create" class="screen">
+        <div class="top"><div class="wordmark">Create a loan</div><button class="close" onclick="go('home')" aria-label="Close">×</button></div>
+        <p class="eyebrow">Step 1 of 2</p><h1>Which describes<br />this loan?</h1>
+        <button id="lent" class="choice selected" onclick="role('lent')">↗ &nbsp; I lent money<span>Money goes from me to the other person.</span></button>
+        <button id="borrowed" class="choice" onclick="role('borrowed')">↙ &nbsp; I borrowed money<span>Money comes from the other person to me.</span></button>
+        <div class="field"><label for="person">Other person</label><input id="person" value="Alex" aria-label="Other person" /></div>
+        <div class="field"><label for="amount">Amount</label><div class="currency"><input id="amount" value="500" inputmode="decimal" aria-label="Amount" /><div>USD</div></div></div>
+        <div class="field date-row"><div class="datebox"><small>Loan date</small>22 Aug 2026</div><div class="datebox"><small>Due date</small>22 Sep 2026</div></div>
+        <div class="bottom"><button class="primary" onclick="review()">Continue</button></div>
+      </section>
+
+      <section id="review" class="screen">
+        <div class="top"><div class="wordmark">Review</div><button class="close" onclick="go('create')" aria-label="Back">‹</button></div>
+        <p class="eyebrow">Step 2 of 2</p><h1>Check this<br />shared record.</h1><p>Both people will see these terms before the loan becomes active.</p>
+        <div class="review"><div class="people"><div class="person"><div class="avatar">D</div>Duy<div id="myRole" class="role">LENDER</div></div><div id="flow" class="flow">→</div><div class="person"><div class="avatar">A</div><span id="reviewPerson">Alex</span><div id="theirRole" class="role">BORROWER</div></div></div><div id="reviewAmount" class="amount">500 USD</div><p>22 Aug 2026 &nbsp;→&nbsp; 22 Sep 2026</p></div>
+        <div class="notice"><b>ⓘ</b><span>This sends an invite. The amount does not become a shared balance until the other person joins.</span></div>
+        <div class="bottom"><button class="primary" onclick="go('invite')">Send invite</button></div>
+      </section>
+
+      <section id="invite" class="screen">
+        <div class="top"><div class="wordmark">Loan</div><div></div></div>
+        <p class="eyebrow">Shared loan invite</p><h1>Duy invited you<br />to a loan.</h1><p>Review the details before you join.</p>
+        <div class="review"><div class="avatar">D</div><strong>You would be the <span id="inviteRole">BORROWER</span></strong><div id="inviteAmount" class="amount">500 USD</div><p>Loan date: 22 Aug 2026<br />Due date: 22 Sep 2026</p></div>
+        <div class="bottom split"><button class="secondary" onclick="alert('Invite declined in this prototype.')">Decline</button><button class="primary" onclick="go('room')">Join loan</button></div>
+      </section>
+
+      <section id="room" class="screen">
+        <div class="top"><div class="wordmark">Loan room</div><button class="close" aria-label="More options">•••</button></div><span class="status">● ACTIVE</span>
+        <div class="summary"><div class="people"><div class="person"><div class="avatar">D</div>Duy<div class="role">LENDER</div></div><div class="flow">→</div><div class="person"><div class="avatar">A</div>Alex<div class="role">BORROWER</div></div></div><p style="margin-top:28px">Remaining</p><div id="roomAmount" class="amount">500 USD</div><div class="progress"><i id="bar"></i></div><div class="room-meta"><span id="paid">0% repaid</span><span>Due 22 Sep</span></div></div>
+        <div class="timeline"><h2>Timeline</h2><div id="repaymentEvent"></div><div class="event">Loan confirmed by both<small>Today</small></div><div class="event">Invite accepted<small>Today</small></div></div>
+        <div class="bottom"><button class="primary" onclick="go('payment')">Record repayment</button></div>
+      </section>
+
+      <section id="payment" class="screen">
+        <div class="top"><div class="wordmark">Record repayment</div><button class="close" onclick="go('room')" aria-label="Close">×</button></div>
+        <h1>I paid</h1><div class="field"><label for="payAmount">Amount</label><div class="currency"><input id="payAmount" value="100" inputmode="decimal" aria-label="Repayment amount" /><div>USD</div></div></div><div class="field"><label>Payment date</label><div class="datebox">Today</div></div>
+        <div class="notice"><b>ⓘ</b><span>The other person must confirm before the remaining amount changes.</span></div>
+        <div class="bottom"><button class="primary" onclick="paymentReview()">Review repayment</button></div>
+      </section>
+
+      <section id="confirm" class="screen">
+        <div class="top"><div class="wordmark">Confirm repayment</div><button class="close" onclick="go('room')" aria-label="Close">×</button></div>
+        <p class="eyebrow">Needs your confirmation</p><h1>Alex recorded<br />a repayment.</h1><div class="review"><div id="confirmAmount" class="amount">100 USD</div><p>22 Aug 2026</p></div><div class="notice"><b>ⓘ</b><span>The remaining amount stays the same until you confirm.</span></div>
+        <div class="bottom split"><button class="secondary" onclick="alert('Marked as disputed in this prototype.')">Dispute</button><button class="primary" onclick="confirmPayment()">Confirm</button></div>
+      </section>
+
+      <section id="success" class="screen"><div class="success"><div class="success-icon">✓</div><h1>Repayment confirmed</h1><p><span id="successAmount">100 USD</span> is now part of the shared record.<br />Remaining: <b id="successRemaining">400 USD</b></p></div><div class="bottom"><button class="primary" onclick="go('room')">Back to loan</button></div></section>
+    </main>
+    <script>
+      let selectedRole = 'lent', repayment = 100, confirmed = false;
+      function go(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+      function role(value) { selectedRole = value; document.getElementById('lent').classList.toggle('selected', value === 'lent'); document.getElementById('borrowed').classList.toggle('selected', value === 'borrowed'); }
+      function review() { const p = document.getElementById('person').value || 'Alex'; const a = document.getElementById('amount').value || '0'; const mine = selectedRole === 'lent' ? 'LENDER' : 'BORROWER'; const theirs = selectedRole === 'lent' ? 'BORROWER' : 'LENDER'; document.getElementById('reviewPerson').textContent = p; document.getElementById('reviewAmount').textContent = a + ' USD'; document.getElementById('myRole').textContent = mine; document.getElementById('theirRole').textContent = theirs; document.getElementById('inviteRole').textContent = theirs; document.getElementById('inviteAmount').textContent = a + ' USD'; document.getElementById('roomAmount').textContent = a + ' USD'; go('review'); }
+      function paymentReview() { repayment = Math.max(0, Number(document.getElementById('payAmount').value) || 0); document.getElementById('confirmAmount').textContent = repayment + ' USD'; go('confirm'); }
+      function confirmPayment() { confirmed = true; const original = Number(document.getElementById('amount').value) || 500; const left = Math.max(0, original - repayment); document.getElementById('roomAmount').textContent = left + ' USD'; document.getElementById('successAmount').textContent = repayment + ' USD'; document.getElementById('successRemaining').textContent = left + ' USD'; document.getElementById('bar').style.width = ((repayment / original) * 100) + '%'; document.getElementById('paid').textContent = Math.round((repayment / original) * 100) + '% repaid'; document.getElementById('repaymentEvent').innerHTML = '<div class="event">Repayment confirmed — ' + repayment + ' USD<small>Today</small></div>'; go('success'); }
+    </script>
+  </body>
+</html>
