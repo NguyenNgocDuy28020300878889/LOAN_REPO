@@ -24,7 +24,7 @@
 - `npm run validate` đã đạt: Prettier, ESLint, TypeScript, unit test và static web export.
 - Có 11 unit tests đang pass; `app/dist/index.html` và 11 routes đã được tạo.
 - Supabase DEV: local/remote khớp 11 migrations, gồm `20260822100000_account_deletion_history_retention.sql`.
-- Android EAS build `ead21548-3afb-4d13-a07b-8bae56fb615c` lỗi `EAS_BUILD_UNKNOWN_GRADLE_ERROR`.
+- Android production build `ead21548-3afb-4d13-a07b-8bae56fb615c` lỗi `EAS_BUILD_UNKNOWN_GRADLE_ERROR`. Preview build nội bộ `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` đã gửi EAS và đang `IN_QUEUE`.
 
 ---
 
@@ -72,7 +72,7 @@
 
 | Việc | Điều kiện hoàn tất |
 |---|---|
-| Android build | Mở EAS build `ead21548-3afb-4d13-a07b-8bae56fb615c`, lấy lỗi đầu tiên ở **Run gradlew**, sửa rồi build `finished` |
+| Android build | Theo dõi preview build `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` đến `finished`, tải APK và cài thử; đồng thời lấy lỗi đầu tiên ở **Run gradlew** của production build cũ để sửa |
 | iOS build | Có Apple Developer credentials, signing và EAS build `finished` |
 | Sentry production | DSN/org/project/token, scrubbed event và source map hoạt động |
 | Dependency audit | Theo dõi 12 moderate advisory Expo/xcode → uuid; chỉ nâng cấp khi có bản Expo tương thích |
