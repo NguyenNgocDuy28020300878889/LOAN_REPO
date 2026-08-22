@@ -24,7 +24,8 @@
 - `npm run validate` đã đạt: Prettier, ESLint, TypeScript, unit test và static web export.
 - Có 11 unit tests đang pass; `app/dist/index.html` và 11 routes đã được tạo.
 - Supabase DEV: local/remote khớp 11 migrations, gồm `20260822100000_account_deletion_history_retention.sql`.
-- Android production build `ead21548-3afb-4d13-a07b-8bae56fb615c` lỗi `EAS_BUILD_UNKNOWN_GRADLE_ERROR`. Preview build nội bộ `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` đã gửi EAS và đang `IN_QUEUE`.
+- Android production build `ead21548-3afb-4d13-a07b-8bae56fb615c` và preview build nội bộ `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` đều lỗi `EAS_BUILD_UNKNOWN_GRADLE_ERROR`; lỗi đã tái lập ở cả hai profile.
+- Kiểm tra Expo Go trên Android cho thấy lỗi `Incompatible SDK version` với SDK 57. Dự án đã được hạ về Expo SDK 54 để kiểm thử bằng Expo Go; `expo-doctor` đạt 18/18, lint và TypeScript sạch, Vitest đạt 11/11. Cần quét QR lại sau khi khởi động Metro.
 
 ---
 
@@ -64,7 +65,7 @@
 
 ### Đã hoàn thành
 
-- Expo SDK 57, Expo Router, TypeScript strict, ESLint, Prettier, Vitest, GitHub Actions CI.
+- Expo SDK 54, Expo Router, TypeScript strict, ESLint, Prettier, Vitest, GitHub Actions CI.
 - TanStack Query, Zustand, validation, i18n, Supabase client theo môi trường và Sentry skeleton.
 - EAS liên kết `@loanappmobiles-team/loanapp`; static web export đã kiểm tra.
 
@@ -72,7 +73,7 @@
 
 | Việc | Điều kiện hoàn tất |
 |---|---|
-| Android build | Theo dõi preview build `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` đến `finished`, tải APK và cài thử; đồng thời lấy lỗi đầu tiên ở **Run gradlew** của production build cũ để sửa |
+| Android build | Mở EAS dashboard của preview build `2516cb39-4b1e-4716-8a7b-c9f4c9991f05` hoặc production build cũ, lấy lỗi đầu tiên ở **Run gradlew** để sửa; hiện chưa có APK |
 | iOS build | Có Apple Developer credentials, signing và EAS build `finished` |
 | Sentry production | DSN/org/project/token, scrubbed event và source map hoạt động |
 | Dependency audit | Theo dõi 12 moderate advisory Expo/xcode → uuid; chỉ nâng cấp khi có bản Expo tương thích |

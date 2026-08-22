@@ -30,7 +30,7 @@ export default function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const finish = () => router.replace(returnTo?.startsWith('/') ? returnTo : '/');
+  const finish = () => router.replace(returnTo?.startsWith('/') ? (returnTo as never) : '/');
 
   const submitEmail = async () => {
     setIsLoading(true);

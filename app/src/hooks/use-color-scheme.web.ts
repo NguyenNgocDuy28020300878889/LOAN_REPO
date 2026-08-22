@@ -9,7 +9,6 @@ export function useColorScheme() {
 
   useEffect(() => {
     // Static web rendering must defer system-color detection until hydration.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHasHydrated(true);
   }, []);
 
