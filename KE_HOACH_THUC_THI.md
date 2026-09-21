@@ -1,4 +1,12 @@
-# Kế hoạch thực thi MVP — Loan
+# Kế hoạch thực thi — Loan
+
+**Cập nhật 16/09/2026:** Kế hoạch hiện hành là [Kế hoạch ra mắt Android](KE_HOACH_RA_MAT_ANDROID.md), theo nguồn lực **một người, Android trước, iOS sau** đã được chủ dự án xác nhận.
+
+**Rà soát bảo mật:** [Kế hoạch bảo mật](KE_HOACH_BAO_MAT.md) quy định threat model, rủi ro, 20 kịch bản kiểm thử và cổng S0–S5 trước dữ liệu thật. Ước lượng hiện hành 12–18 tuần gần toàn thời gian. Chủ dự án đã cho phép triển khai lại; xem tiến độ có bằng chứng trong báo cáo. Capability link đã chốt, policy room sau deletion còn mở.
+
+Lộ trình mới: M0 bản cài/staging → M1 auth/cache → M2 database/integrity → M3 luồng hai thiết bị → M4 deletion/push/vận hành → M5 closed beta → M6 Android công khai. Đọc tài liệu mới để lấy checklist, quyết định cần chốt, ước lượng và điều kiện nghiệm thu.
+
+**Phần bên dưới là kế hoạch lịch sử, không dùng trạng thái hoặc thứ tự này để điều hành triển khai hiện tại.**
 
 > Kế hoạch chủ đạo để theo dõi xuyên suốt quá trình xây dựng. Chỉ bắt đầu một bước khi các phụ thuộc của nó đã đạt tiêu chí hoàn tất.
 

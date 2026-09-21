@@ -1,0 +1,30 @@
+# EAS reads this at the Git repository root. Keep private/local files out of
+# archives even when Windows nested .gitignore handling differs from Git.
+.git
+node_modules
+.env
+.env.*
+!.env.example
+.local
+.expo
+dist
+web-build
+.kotlin
+*.orig.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+.DS_Store
+*.tsbuildinfo
+app/ios
+app/android
+app/supabase/.temp
+app/supabase/.branches

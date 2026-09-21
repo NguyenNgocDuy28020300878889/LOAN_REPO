@@ -1,5 +1,7 @@
 # Authentication & Data Protection Policy — Loan MVP
 
+> **Update 2026-09-16:** Follow [the security plan](../KE_HOACH_BAO_MAT.md). The owner chose capability invitations: any authenticated holder of a valid link may join, without email binding. Post-deletion read-only rooms remain undecided. Fresh re-authentication, session revocation and retention/restore controls remain release requirements, not claims about deployed behavior. Financial facts and controlled personal-data redaction must be designed separately.
+
 ## Auth scope
 
 - **MVP:** Email/Password và Google OAuth.

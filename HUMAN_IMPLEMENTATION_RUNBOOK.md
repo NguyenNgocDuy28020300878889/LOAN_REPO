@@ -1,5 +1,7 @@
 # Loan — Hướng dẫn triển khai cần người phụ trách
 
+> **Cập nhật 16/09/2026:** Đọc cùng [Kế hoạch ra mắt Android](KE_HOACH_RA_MAT_ANDROID.md), là nguồn quyết định thứ tự hiện hành. Một người triển khai, Android trước/iOS sau. Các build ID và trạng thái dưới đây là lịch sử; kiểm tra lại trước thao tác. Việc yêu cầu cả Android/iOS chỉ áp dụng khi phát hành cả hai nền tảng. Tài liệu môi trường hiện hành: [ENVIRONMENTS.md](app/docs/ENVIRONMENTS.md).
+
 Tài liệu này gồm các thao tác cần quyền sở hữu tài khoản, credentials, thiết bị thật hoặc quyết định pháp lý/sản phẩm. Thực hiện theo thứ tự và ghi kết quả vào `BAO_CAO_TIEN_DO.md`.
 
 Trước mỗi lần build beta, chạy:

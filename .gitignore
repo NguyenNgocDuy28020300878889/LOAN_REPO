@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Expo / Builds
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
+
+# Metro & debug
+.metro-health-check*
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local env & secrets
+.env
+.env.*
+!.env.example
+.local/
+.env*.local
+*.local
+
+# TypeScript
+*.tsbuildinfo
+
+# Supabase CLI temp / branches
+.branches
+.temp
+**/.temp/
+**/.branches/

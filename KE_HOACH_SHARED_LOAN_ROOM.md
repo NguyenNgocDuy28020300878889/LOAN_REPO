@@ -1,5 +1,7 @@
 # KẾ HOẠCH PHÁT TRIỂN APP “KHÔNG GIAN KHOẢN VAY DÙNG CHUNG”
 
+> **Ghi chú 16/09/2026:** Tài liệu này giữ tầm nhìn và thiết kế ban đầu. Phạm vi, phiên bản stack, thứ tự triển khai và cổng phát hành hiện hành theo [Kế hoạch ra mắt Android](KE_HOACH_RA_MAT_ANDROID.md). Các mục đã đánh dấu trong tài liệu này không chứng minh đã triển khai hoặc kiểm thử. Android trước, iOS sau; một người triển khai.
+
 > **Tên làm việc:** Shared Loan Room / Who Owes?  
 > **Phiên bản tài liệu:** 1.0  
 > **Ngày chốt:** 22/08/2026  

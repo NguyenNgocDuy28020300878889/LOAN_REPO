@@ -1,5 +1,7 @@
 # Phase 8 — Release & Learn
 
+> **Superseded release sequencing, 2026-09-16:** Follow [the Android release plan](KE_HOACH_RA_MAT_ANDROID.md). The owner confirmed one developer and Android first, iOS later. The historical requirement below for both platform artifacts does not block an Android-only release. Security, integrity, deletion, privacy and operational gates still apply to the released platform.
+
 **Status:** In progress — preparation only; no store submission or public rollout has occurred.
 
 ## Repository evidence
