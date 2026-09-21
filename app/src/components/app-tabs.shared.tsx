@@ -44,6 +44,7 @@ export default function AppTabs() {
       <Tabs.Screen name="open-invite" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
       <Tabs.Screen name="invite/[token]" options={{ href: null }} />
+      <Tabs.Screen name="pending-invite/[id]" options={{ href: null }} />
       <Tabs.Screen name="loan/[id]/repayment" options={{ href: null }} />
       <Tabs.Screen name="loan/[id]" options={{ href: null }} />
     </Tabs>
