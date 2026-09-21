@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -20,3 +23,36 @@ jobs:
           cache-dependency-path: app/package-lock.json
       - run: npm ci
       - run: npm run validate
+
+  database:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - name: Start isolated database and replay migrations
+        run: npx supabase start -x studio,storage-api,imgproxy,edge-runtime,logflare,vector,supavisor
+      - name: Run database authorization and integrity regressions
+        run: npm run db:test
+      - name: Test concurrent repayment decisions
+        run: npm run db:test:concurrency
+      - name: Test local email verification and password recovery
+        run: |
+          mkdir -p .local
+          npx supabase status --output json > .local/local-status.json
+          npm run test:auth:local
+          npm run test:otp:local
+      - name: Export isolated browser build for local HTTP and Realtime
+        run: npm run export:browser:local
+      - name: Test two-account loan journey, retry, Realtime and outsider isolation
+        run: npm run test:browser:local
+      - name: Stop isolated services
+        if: always()
+        run: npx supabase stop

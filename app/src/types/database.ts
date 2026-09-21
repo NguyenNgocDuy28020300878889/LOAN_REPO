@@ -19,6 +19,21 @@ export type Database = {
     >;
     Views: Record<string, never>;
     Functions: {
+      register_push_device: {
+        Args: {
+          device_id_input: string;
+          secret_input: string;
+          token_input: string;
+          platform_input: string;
+          timezone_input: string;
+          locale_input: string;
+        };
+        Returns: undefined;
+      };
+      unregister_push_device: {
+        Args: { device_id_input: string; secret_input: string };
+        Returns: undefined;
+      };
       accept_loan_invite: {
         Args: { idempotency_key_input: string; invite_token_input: string };
         Returns: Json;
@@ -38,6 +53,14 @@ export type Database = {
       };
       decline_loan_invite: {
         Args: { idempotency_key_input: string; invite_token_input: string };
+        Returns: Json;
+      };
+      manage_loan_invite: {
+        Args: {
+          loan_id_input: string;
+          action_input: 'rotate' | 'revoke';
+          idempotency_key_input: string;
+        };
         Returns: Json;
       };
       get_loan_invite_preview: {

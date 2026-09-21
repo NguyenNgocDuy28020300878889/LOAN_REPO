@@ -31,6 +31,8 @@ export function loanEventLabel(eventType: string, t: TFunction) {
       return t('loan.eventLoanCreated');
     case 'INVITE_CREATED':
       return t('loan.eventInviteCreated');
+    case 'INVITE_REVOKED':
+      return t('loan.eventInviteRevoked');
     case 'LOAN_ACCEPTED':
       return t('loan.eventLoanAccepted');
     case 'LOAN_DECLINED':

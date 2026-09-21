@@ -1,34 +1,59 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-
 import {
   acceptLoanInvite,
   declineLoanInvite,
   getLoanInvitePreview,
   type LoanInvitePreview,
 } from '@/features/loans/api';
-import { isInviteToken, makeIdempotencyKey } from '@/features/loans/invite';
+import { isInviteToken } from '@/features/loans/invite';
+import { useIdempotentCommand } from '@/hooks/use-idempotent-command';
 import { formatMoneyMinor } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth-store';
-
+import { Alert } from '@/lib/alert';
+import {
+  base,
+  Brand,
+  Button,
+  Card,
+  Icon,
+  Label,
+  Notice,
+  Screen,
+  Section,
+  usePalette,
+} from '@/components/loan-ui';
 export default function InviteScreen() {
+  const p = usePalette();
+  const command = useIdempotentCommand();
   const { token } = useLocalSearchParams<{ token: string }>();
   const router = useRouter();
   const { i18n, t } = useTranslation();
   const session = useAuthStore((state) => state.session);
+  const userId = session?.user.id;
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const [action, setAction] = useState<'accept' | 'decline' | null>(null);
   const [preview, setPreview] = useState<LoanInvitePreview | null>(null);
   const [previewFailed, setPreviewFailed] = useState(false);
 
   useEffect(() => {
-    if (!isInviteToken(token)) return;
+    setPreview(null);
+    setPreviewFailed(false);
+    if (!isHydrated || !userId || !isInviteToken(token)) return;
+    let active = true;
     void getLoanInvitePreview(token)
-      .then(setPreview)
-      .catch(() => setPreviewFailed(true));
-  }, [token]);
+      .then((value) => {
+        if (active) setPreview(value);
+      })
+      .catch(() => {
+        if (active) setPreviewFailed(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token, userId, isHydrated]);
 
   const respond = async (decision: 'accept' | 'decline') => {
     if (!isInviteToken(token)) return Alert.alert(t('appName'), t('loan.invalidInvite'));
@@ -37,13 +62,15 @@ export default function InviteScreen() {
 
     setAction(decision);
     try {
-      const result =
-        decision === 'accept'
-          ? await acceptLoanInvite(token, makeIdempotencyKey())
-          : await declineLoanInvite(token, makeIdempotencyKey());
+      const result = await command.run<{ loan_id: string; status: 'ACTIVE' | 'DECLINED' }>(
+        `${decision}_loan_invite`,
+        { token },
+        (key) =>
+          decision === 'accept' ? acceptLoanInvite(token, key) : declineLoanInvite(token, key),
+      );
       Alert.alert(
-        t('appName'),
         result.status === 'ACTIVE' ? t('loan.inviteAccepted') : t('loan.inviteDeclined'),
+        result.status === 'ACTIVE' ? t('loan.inviteAcceptedHelp') : t('loan.inviteDeclinedHelp'),
         [{ text: t('loan.confirm'), onPress: () => router.replace('/') }],
       );
     } catch {
@@ -53,103 +80,113 @@ export default function InviteScreen() {
     }
   };
 
-  if (!isInviteToken(token) || previewFailed) {
+  if (!isHydrated)
     return (
-      <SafeAreaView style={styles.safeArea}>
-        <View style={styles.card}>
-          <Text style={styles.title}>{t('loan.invalidInvite')}</Text>
-        </View>
-      </SafeAreaView>
+      <Screen>
+        <ActivityIndicator color={p.primary} />
+      </Screen>
     );
-  }
-
-  return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>{t('appName')}</Text>
-        <Text style={styles.title}>{t('loan.inviteTitle')}</Text>
-        <Text style={styles.description}>{t('loan.inviteDescription')}</Text>
-        <View style={styles.card}>
-          {!preview ? (
-            <ActivityIndicator color="#1D4ED8" />
-          ) : (
-            <>
-              <Text style={styles.cardTitle}>
-                {formatMoneyMinor(preview.principal_minor, preview.currency, i18n.language)}
-              </Text>
-              <Text style={styles.cardBody}>
-                {t('loan.loanDate')}: {preview.loan_date}
-                {'\n'}
-                {t('loan.dueDate')}: {preview.due_date}
-                {'\n'}
-                {preview.target_role === 'LENDER' ? t('loan.lender') : t('loan.borrower')}
-                {preview.purpose ? `\n${preview.purpose}` : ''}
-              </Text>
-            </>
-          )}
+  if (!session && isInviteToken(token))
+    return (
+      <Screen
+        footer={
+          <Button
+            label={t('auth.signIn')}
+            icon="forward"
+            onPress={() =>
+              router.push({ pathname: '/auth', params: { returnTo: `/invite/${token}` } })
+            }
+          />
+        }
+      >
+        <Brand />
+        <View style={{ paddingVertical: 24, gap: 24 }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 24,
+              backgroundColor: p.soft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon name="lock" size={40} color={p.primary} />
+          </View>
+          <Text style={[base.fieldLabel, { color: p.primary }]}>{t('ui.inviteEyebrow')}</Text>
+          <Text accessibilityRole="header" style={[base.amount, { color: p.text }]}>
+            {t('loan.inviteTitle')}
+          </Text>
+          <Label muted>{t('loan.inviteSignIn')}</Label>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('loan.acceptInvite')}
-          disabled={action !== null || !preview}
-          onPress={() => void respond('accept')}
-          style={({ pressed }) => [
-            styles.acceptButton,
-            (pressed || action !== null) && styles.pressed,
-          ]}
-        >
-          {action === 'accept' ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.acceptText}>{t('loan.acceptInvite')}</Text>
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={t('loan.declineInvite')}
-          disabled={action !== null || !preview}
-          onPress={() => void respond('decline')}
-          style={({ pressed }) => [
-            styles.declineButton,
-            (pressed || action !== null) && styles.pressed,
-          ]}
-        >
-          {action === 'decline' ? (
-            <ActivityIndicator color="#1D4ED8" />
-          ) : (
-            <Text style={styles.declineText}>{t('loan.declineInvite')}</Text>
-          )}
-        </Pressable>
+        <Notice>{t('ui.invitePrivate')}</Notice>
+      </Screen>
+    );
+  if (!isInviteToken(token) || previewFailed)
+    return (
+      <Screen>
+        <Brand />
+        <Card>
+          <Section>{t('loan.invalidInvite')}</Section>
+          <Button kind="secondary" label={t('ui.loansTab')} onPress={() => router.replace('/')} />
+        </Card>
+      </Screen>
+    );
+  return (
+    <Screen
+      footer={
+        <View style={{ gap: 8 }}>
+          <Button
+            label={t('loan.acceptInvite')}
+            icon="check"
+            loading={action === 'accept'}
+            disabled={action !== null || !preview}
+            onPress={() => void respond('accept')}
+          />
+          <Button
+            kind="quiet"
+            label={t('loan.declineInvite')}
+            loading={action === 'decline'}
+            disabled={action !== null || !preview}
+            onPress={() => void respond('decline')}
+          />
+        </View>
+      }
+    >
+      <Brand />
+      <View style={{ gap: 12 }}>
+        <Text style={[base.fieldLabel, { color: p.primary }]}>{t('ui.inviteEyebrow')}</Text>
+        <Text accessibilityRole="header" style={[base.title, { color: p.text }]}>
+          {t('loan.inviteTitle')}
+        </Text>
+        <Label muted>{t('loan.inviteDescription')}</Label>
       </View>
-    </SafeAreaView>
+      {!preview ? (
+        <ActivityIndicator color={p.primary} />
+      ) : (
+        <>
+          <View style={{ backgroundColor: p.hero, borderRadius: 24, padding: 24, gap: 12 }}>
+            <Text style={[base.caption, { color: p.heroMuted }]}>{t('loan.amount')}</Text>
+            <Text style={[base.amount, { color: p.heroText }]}>
+              {formatMoneyMinor(preview.principal_minor, preview.currency, i18n.language)}
+            </Text>
+            <Text style={[base.body, { color: p.heroMuted }]}>
+              {t(preview.target_role === 'LENDER' ? 'loan.lender' : 'loan.borrower')}
+            </Text>
+          </View>
+          <Card>
+            <Section>{t('ui.invitationSummary')}</Section>
+            {preview.purpose && <Label>{preview.purpose}</Label>}
+            <Label muted>
+              {t('loan.loanDate')}: {preview.loan_date}
+            </Label>
+            <Label muted>
+              {t('loan.dueDate')}: {preview.due_date}
+            </Label>
+          </Card>
+          <Notice tone="warning">{t('loan.bearerInviteWarning')}</Notice>
+        </>
+      )}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F9FC' },
-  content: { flex: 1, padding: 24, justifyContent: 'center', gap: 16 },
-  eyebrow: { color: '#1D4ED8', fontSize: 14, fontWeight: '700' },
-  title: { color: '#101828', fontSize: 28, fontWeight: '700', lineHeight: 36 },
-  description: { color: '#475467', fontSize: 16, lineHeight: 24, marginBottom: 8 },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 16, gap: 8 },
-  cardTitle: { color: '#101828', fontSize: 16, fontWeight: '700' },
-  cardBody: { color: '#667085', fontSize: 14, lineHeight: 20 },
-  acceptButton: {
-    minHeight: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1D4ED8',
-  },
-  acceptText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  declineButton: {
-    minHeight: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#1D4ED8',
-  },
-  declineText: { color: '#1D4ED8', fontSize: 16, fontWeight: '700' },
-  pressed: { opacity: 0.7 },
-});

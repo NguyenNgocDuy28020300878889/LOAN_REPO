@@ -1,38 +1,59 @@
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ActivityIndicator, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
+import * as Linking from 'expo-linking';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
-
-import { decideRepayment, getLoanRepayments, getLoanRoom } from '@/features/loans/api';
-import { makeIdempotencyKey } from '@/features/loans/invite';
+import { accountKey } from '@/lib/account-boundary';
+import { Alert } from '@/lib/alert';
+import { shareInviteLink } from '@/lib/share-invite';
+import {
+  decideRepayment,
+  getLoanRepayments,
+  getLoanRoom,
+  manageLoanInvite,
+  type Repayment,
+  type LoanRoom,
+} from '@/features/loans/api';
+import { useIdempotentCommand } from '@/hooks/use-idempotent-command';
 import { useAuthStore } from '@/stores/auth-store';
 import { formatDate, formatMoneyMinor } from '@/lib/format';
 import { loanEventLabel, loanStatusLabel } from '@/i18n/loan-labels';
-
+import {
+  base,
+  Button,
+  Card,
+  Icon,
+  Label,
+  Notice,
+  PageHeader,
+  Screen,
+  Section,
+  StatusBadge,
+  usePalette,
+} from '@/components/loan-ui';
+type HistoryRow =
+  | { kind: 'repayment'; value: Repayment }
+  | { kind: 'event'; value: LoanRoom['timeline'][number] }
+  | { kind: 'empty'; section: 'repayments' | 'timeline' };
 export default function LoanRoomScreen() {
+  const p = usePalette();
+  const command = useIdempotentCommand();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const session = useAuthStore((state) => state.session);
+  const isHydrated = useAuthStore((state) => state.isHydrated);
   const queryClient = useQueryClient();
   const { i18n, t } = useTranslation();
   const room = useQuery({
-    queryKey: ['loan-room', id],
+    queryKey: accountKey(session?.user.id, 'loan-room', id),
     queryFn: () => getLoanRoom(id),
-    enabled: Boolean(id),
+    enabled: isHydrated && Boolean(session && id),
   });
   const repayments = useQuery({
-    queryKey: ['loan-repayments', id],
+    queryKey: accountKey(session?.user.id, 'loan-repayments', id),
     queryFn: () => getLoanRepayments(id),
-    enabled: Boolean(id),
+    enabled: isHydrated && Boolean(session && id),
   });
   const decision = useMutation({
     mutationFn: ({
@@ -41,172 +62,389 @@ export default function LoanRoomScreen() {
     }: {
       repaymentId: string;
       action: 'confirm' | 'dispute' | 'cancel';
-    }) => decideRepayment(repaymentId, action, makeIdempotencyKey()),
+    }) =>
+      command.run(`${action}_repayment`, { repaymentId }, (key) =>
+        decideRepayment(repaymentId, action, key),
+      ),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['loan-room', id] });
-      void queryClient.invalidateQueries({ queryKey: ['loan-repayments', id] });
-      void queryClient.invalidateQueries({ queryKey: ['loans'] });
+      void queryClient.invalidateQueries({
+        queryKey: accountKey(session?.user.id, 'loan-room', id),
+      });
+      void queryClient.invalidateQueries({
+        queryKey: accountKey(session?.user.id, 'loan-repayments', id),
+      });
+      void queryClient.invalidateQueries({ queryKey: accountKey(session?.user.id, 'loans') });
     },
     onError: () => Alert.alert(t('appName'), t('loan.somethingWentWrong')),
   });
+  const invite = useMutation({
+    mutationFn: async (action: 'rotate' | 'revoke') => {
+      const result = await command.run('manage_loan_invite', { loanId: id, action }, (key) =>
+        manageLoanInvite(id, action, key),
+      );
+      let shareFailed = false;
+      if (result.invite_token) {
+        try {
+          await shareInviteLink(
+            Linking.createURL(`/invite/${result.invite_token}`),
+            t('loan.shareInvite'),
+            t('loan.inviteShareInstructions'),
+          );
+        } catch {
+          shareFailed = true;
+        }
+      }
+      command.clearCompleted();
+      return { ...result, shareFailed };
+    },
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({
+        queryKey: accountKey(session?.user.id, 'loan-room', id),
+      });
+      if (result.action === 'revoke') Alert.alert(t('appName'), t('loan.inviteRevoked'));
+      else if (!result.invite_token) Alert.alert(t('appName'), t('loan.invalidInvite'));
+      else if (result.shareFailed) Alert.alert(t('appName'), t('loan.inviteShareFailed'));
+      else Alert.alert(t('loan.inviteReplaced'), t('loan.inviteReplacedHelp'));
+    },
+    onError: () => Alert.alert(t('appName'), t('loan.somethingWentWrong')),
+  });
+  if (!isHydrated)
+    return (
+      <Screen>
+        <ActivityIndicator color={p.primary} />
+      </Screen>
+    );
+  if (!session) return <Redirect href="/auth" />;
   if (room.isLoading)
     return (
-      <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color="#1D4ED8" style={styles.loader} />
-      </SafeAreaView>
+      <Screen>
+        <ActivityIndicator color={p.primary} />
+      </Screen>
     );
   if (!room.data)
     return (
-      <SafeAreaView style={styles.safe}>
-        <Text style={styles.error}>{t('loan.somethingWentWrong')}</Text>
-      </SafeAreaView>
+      <Screen>
+        <PageHeader title={t('loan.loanRoom')} />
+        <Notice tone="danger">{t('loan.somethingWentWrong')}</Notice>
+        <Button
+          kind="secondary"
+          label={t('settings.tryAgain')}
+          onPress={() => void room.refetch()}
+        />
+      </Screen>
     );
   const loan = room.data;
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.eyebrow}>{t('loan.loanRoom')}</Text>
-        <Text style={styles.balance}>
-          {formatMoneyMinor(loan.balance_minor, loan.currency, i18n.language)}
-        </Text>
-        <Text style={styles.caption}>
-          {t('loan.remaining')} · {loan.status}
-        </Text>
-        {loan.status === 'ACTIVE' && (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push(`/loan/${id}/repayment`)}
-            style={styles.primary}
-          >
-            <Text style={styles.primaryText}>{t('loan.recordRepayment')}</Text>
-          </Pressable>
-        )}
-        <View style={styles.card}>
-          <Text style={styles.label}>{loan.purpose || t('loan.sharedLoan')}</Text>
-          <Text style={styles.meta}>
-            {t('loan.amount')}:{' '}
-            {formatMoneyMinor(loan.principal_minor, loan.currency, i18n.language)}
-            {'\n'}
-            {t('loan.loanDate')}: {formatDate(loan.loan_date, i18n.language)}
-            {'\n'}
-            {t('loan.dueDate')}: {formatDate(loan.due_date, i18n.language)}
-          </Text>
-        </View>
-        <Text style={styles.section}>{t('loan.members')}</Text>
-        <View style={styles.card}>
-          {loan.members.map((member) => (
-            <Text key={member.role} style={styles.meta}>
-              {member.role === 'LENDER' ? t('loan.lender') : t('loan.borrower')}:{' '}
-              {member.display_name || '—'}
-            </Text>
-          ))}
-        </View>
-        <Text style={styles.section}>{t('loan.repayments')}</Text>
-        <View style={styles.card}>
-          {repayments.isLoading ? (
-            <ActivityIndicator color="#1D4ED8" />
-          ) : repayments.data?.length ? (
-            repayments.data.map((repayment) => {
-              const own = repayment.created_by === session?.user.id;
-              return (
-                <View key={repayment.id} style={styles.event}>
-                  <Text style={styles.label}>
-                    {formatMoneyMinor(repayment.amount_minor, loan.currency, i18n.language)} ·{' '}
-                    {loanStatusLabel(repayment.status, t)}
-                  </Text>
-                  <Text style={styles.meta}>
-                    {formatDate(repayment.payment_date, i18n.language)}
-                    {repayment.note ? ` · ${repayment.note}` : ''}
-                  </Text>
-                  {repayment.status === 'PENDING' && (
-                    <View style={styles.actions}>
-                      {own ? (
-                        <Action
-                          label={t('loan.cancel')}
-                          onPress={() =>
-                            decision.mutate({ repaymentId: repayment.id, action: 'cancel' })
-                          }
-                        />
-                      ) : (
-                        <>
-                          <Action
-                            label={t('loan.confirmRepayment')}
-                            onPress={() =>
-                              decision.mutate({ repaymentId: repayment.id, action: 'confirm' })
-                            }
-                          />
-                          <Action
-                            label={t('loan.dispute')}
-                            onPress={() =>
-                              decision.mutate({ repaymentId: repayment.id, action: 'dispute' })
-                            }
-                          />
-                        </>
-                      )}
-                    </View>
-                  )}
-                </View>
-              );
-            })
+  const paid = Math.max(0, loan.principal_minor - loan.balance_minor);
+  const progress =
+    loan.principal_minor > 0
+      ? Math.max(0, Math.min(100, Math.round((paid / loan.principal_minor) * 100)))
+      : 0;
+  const sections: { title: string; data: HistoryRow[] }[] = [
+    {
+      title: t('loan.repayments'),
+      data: repayments.data?.length
+        ? repayments.data.map((value) => ({ kind: 'repayment', value }))
+        : [{ kind: 'empty', section: 'repayments' }],
+    },
+    {
+      title: t('loan.timeline'),
+      data: loan.timeline.length
+        ? loan.timeline.map((value) => ({ kind: 'event', value }))
+        : [{ kind: 'empty', section: 'timeline' }],
+    },
+  ];
+  const renderRow = (item: HistoryRow) => {
+    if (item.kind === 'empty')
+      return (
+        <Card>
+          {item.section === 'repayments' && repayments.isLoading ? (
+            <ActivityIndicator color={p.primary} />
+          ) : item.section === 'repayments' && repayments.isError ? (
+            <>
+              <Label muted>{t('loan.somethingWentWrong')}</Label>
+              <Button
+                kind="secondary"
+                label={t('settings.tryAgain')}
+                onPress={() => void repayments.refetch()}
+              />
+            </>
           ) : (
-            <Text style={styles.meta}>—</Text>
+            <Label muted>
+              {t(item.section === 'repayments' ? 'ui.noRepayments' : 'ui.noActivity')}
+            </Label>
           )}
+        </Card>
+      );
+    if (item.kind === 'event') {
+      const event = item.value;
+      return (
+        <View style={{ flexDirection: 'row', gap: 16, paddingVertical: 16, paddingHorizontal: 8 }}>
+          <View
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 16,
+              backgroundColor: p.soft,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Icon
+              name={event.event_type.includes('CONFIRMED') ? 'check' : 'clock'}
+              color={p.primary}
+              size={16}
+            />
+          </View>
+          <View style={{ flex: 1, gap: 4 }}>
+            <Text style={[base.fieldLabel, { color: p.text }]}>
+              {loanEventLabel(event.event_type, t)}
+            </Text>
+            {event.event_type === 'REPAYMENT_CANCELLED' &&
+              event.metadata.reason === 'LOAN_REPAID' && (
+                <Label muted>{t('loan.autoCancelledRepaid')}</Label>
+              )}
+            <Text style={[base.caption, { color: p.muted }]}>
+              {new Date(event.created_at).toLocaleString(i18n.language)}
+            </Text>
+          </View>
         </View>
-        <Text style={styles.section}>{t('loan.timeline')}</Text>
-        <View style={styles.card}>
-          {loan.timeline.length ? (
-            loan.timeline.map((event) => (
-              <View key={event.id} style={styles.event}>
-                <Text style={styles.label}>{loanEventLabel(event.event_type, t)}</Text>
-                <Text style={styles.meta}>
-                  {new Date(event.created_at).toLocaleString(i18n.language)}
+      );
+    }
+    const repayment = item.value;
+    const own = repayment.created_by === session.user.id;
+    return (
+      <Card style={{ marginBottom: 12 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Text style={[base.section, { color: p.text, fontVariant: ['tabular-nums'] }]}>
+            {formatMoneyMinor(repayment.amount_minor, loan.currency, i18n.language)}
+          </Text>
+          <StatusBadge status={repayment.status} />
+        </View>
+        <Text style={[base.body, { color: p.muted }]}>
+          {formatDate(repayment.payment_date, i18n.language)}
+          {repayment.note ? ` · ${repayment.note}` : ''}
+        </Text>
+        {repayment.status === 'PENDING' && (
+          <View style={{ gap: 8 }}>
+            {own ? (
+              <Button
+                kind="secondary"
+                disabled={decision.isPending}
+                label={t('loan.cancel')}
+                onPress={() => decision.mutate({ repaymentId: repayment.id, action: 'cancel' })}
+              />
+            ) : (
+              <>
+                <Button
+                  icon="check"
+                  disabled={decision.isPending}
+                  label={t('loan.confirmRepayment')}
+                  onPress={() =>
+                    Alert.alert(
+                      t('loan.confirmRepayment'),
+                      t('loan.confirmReceived', {
+                        amount: formatMoneyMinor(
+                          repayment.amount_minor,
+                          loan.currency,
+                          i18n.language,
+                        ),
+                      }),
+                      [
+                        { text: t('loan.cancel'), style: 'cancel' },
+                        {
+                          text: t('loan.confirm'),
+                          onPress: () =>
+                            decision.mutate({ repaymentId: repayment.id, action: 'confirm' }),
+                        },
+                      ],
+                    )
+                  }
+                />
+                <Button
+                  kind="quiet"
+                  disabled={decision.isPending}
+                  label={t('loan.dispute')}
+                  onPress={() => decision.mutate({ repaymentId: repayment.id, action: 'dispute' })}
+                />
+              </>
+            )}
+          </View>
+        )}
+      </Card>
+    );
+  };
+  return (
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={{ flex: 1, backgroundColor: p.background }}
+    >
+      <SectionList
+        sections={sections}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        stickySectionHeadersEnabled={false}
+        contentContainerStyle={[base.page, { gap: 0 }]}
+        keyExtractor={(item) =>
+          item.kind === 'empty' ? item.section : `${item.kind}:${item.value.id}`
+        }
+        renderItem={({ item }) => renderRow(item)}
+        renderSectionHeader={({ section }) => (
+          <View style={{ paddingTop: 24, paddingBottom: 16 }}>
+            <Section>{section.title}</Section>
+          </View>
+        )}
+        ListHeaderComponent={
+          <View style={{ gap: 24 }}>
+            <PageHeader title={t('loan.loanRoom')} />
+            <View style={{ backgroundColor: p.hero, borderRadius: 24, padding: 24, gap: 16 }}>
+              <Text style={[base.caption, { color: p.heroMuted }]}>
+                {t('loan.remaining')} · {loanStatusLabel(loan.status, t)}
+              </Text>
+              <Text style={[base.amount, { color: p.heroText }]}>
+                {formatMoneyMinor(loan.balance_minor, loan.currency, i18n.language)}
+              </Text>
+              <View
+                accessibilityRole="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={progress}
+                accessibilityLabel={t('ui.progress')}
+                accessibilityValue={{ min: 0, max: 100, now: progress }}
+                style={{
+                  height: 8,
+                  backgroundColor: '#426454',
+                  borderRadius: 4,
+                  overflow: 'hidden',
+                }}
+              >
+                <View
+                  style={{
+                    width: `${progress}%`,
+                    height: 8,
+                    backgroundColor: p.accent,
+                    borderRadius: 4,
+                  }}
+                />
+              </View>
+              <View style={{ gap: 4 }}>
+                <Text style={[base.caption, { color: p.heroMuted }]}>
+                  {t('ui.paidSoFar')}: {formatMoneyMinor(paid, loan.currency, i18n.language)}
+                </Text>
+                <Text style={[base.caption, { color: p.heroMuted }]}>
+                  {t('ui.originalAmount')}:{' '}
+                  {formatMoneyMinor(loan.principal_minor, loan.currency, i18n.language)}
                 </Text>
               </View>
-            ))
-          ) : (
-            <Text style={styles.meta}>—</Text>
-          )}
+            </View>
+            {loan.status === 'REPAID' && (
+              <Notice>
+                {t('ui.settledTitle')} {t('ui.settledBody')}
+              </Notice>
+            )}
+            {loan.status === 'PENDING' && (
+              <Card>
+                <Notice tone="warning">{t('loan.bearerInviteWarning')}</Notice>
+                <Button
+                  kind="secondary"
+                  icon="plus"
+                  disabled={invite.isPending}
+                  label={t('loan.replaceInvite')}
+                  onPress={() =>
+                    Alert.alert(t('loan.replaceInvite'), t('loan.replaceInviteWarning'), [
+                      { text: t('loan.cancel'), style: 'cancel' },
+                      { text: t('loan.confirm'), onPress: () => invite.mutate('rotate') },
+                    ])
+                  }
+                />
+                <Button
+                  kind="quiet"
+                  disabled={invite.isPending}
+                  label={t('loan.revokeInvite')}
+                  onPress={() =>
+                    Alert.alert(t('loan.revokeInvite'), t('loan.revokeInviteWarning'), [
+                      { text: t('loan.cancel'), style: 'cancel' },
+                      { text: t('loan.confirm'), onPress: () => invite.mutate('revoke') },
+                    ])
+                  }
+                />
+              </Card>
+            )}
+            <Card>
+              <Section>{t('ui.loanDetails')}</Section>
+              <Label>{loan.purpose || t('loan.sharedLoan')}</Label>
+              <View style={{ borderTopWidth: 1, borderColor: p.border, paddingTop: 16, gap: 12 }}>
+                <Detail
+                  label={t('loan.loanDate')}
+                  value={formatDate(loan.loan_date, i18n.language)}
+                />
+                <Detail
+                  label={t('loan.dueDate')}
+                  value={formatDate(loan.due_date, i18n.language)}
+                />
+              </View>
+            </Card>
+            <Card>
+              <Section>{t('loan.members')}</Section>
+              {loan.members.map((member) => (
+                <View key={member.role} style={base.row}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 16,
+                      backgroundColor: p.soft,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Icon
+                      name={member.role === 'LENDER' ? 'arrow-up' : 'arrow-down'}
+                      color={p.primary}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Label>{member.display_name || t('ui.member')}</Label>
+                    <Text style={[base.caption, { color: p.muted }]}>
+                      {t(member.role === 'LENDER' ? 'ui.lenderRole' : 'ui.borrowerRole')}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </Card>
+          </View>
+        }
+      />
+      {loan.status === 'ACTIVE' && (
+        <View style={[base.footer, { backgroundColor: p.background, borderColor: p.border }]}>
+          <View style={base.footerContent}>
+            <Button
+              icon="plus"
+              label={t('loan.recordRepayment')}
+              onPress={() => router.push(`/loan/${id}/repayment`)}
+            />
+          </View>
         </View>
-      </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
-function Action({ label, onPress }: { label: string; onPress: () => void }) {
+function Detail({ label, value }: { label: string; value: string }) {
+  const p = usePalette();
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.action}>
-      <Text style={styles.actionText}>{label}</Text>
-    </Pressable>
+    <View
+      style={{ flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}
+    >
+      <Text style={[base.caption, { color: p.muted }]}>{label}</Text>
+      <Text style={[base.fieldLabel, { color: p.text }]}>{value}</Text>
+    </View>
   );
 }
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F9FC' },
-  content: { padding: 24, gap: 16 },
-  loader: { marginTop: 48 },
-  error: { padding: 24, color: '#B42318' },
-  eyebrow: { color: '#1D4ED8', fontWeight: '700' },
-  balance: { fontSize: 32, fontWeight: '700', color: '#101828', marginTop: 4 },
-  caption: { color: '#667085' },
-  section: { color: '#344054', fontWeight: '700', marginTop: 8 },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 10 },
-  label: { color: '#101828', fontWeight: '700' },
-  meta: { color: '#667085', lineHeight: 21 },
-  event: { gap: 4, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#EAECF0' },
-  primary: {
-    minHeight: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1D4ED8',
-  },
-  primaryText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 4 },
-  action: {
-    minHeight: 40,
-    paddingHorizontal: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
-  },
-  actionText: { color: '#1D4ED8', fontWeight: '700', fontSize: 13 },
-});

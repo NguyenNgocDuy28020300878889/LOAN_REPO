@@ -1,30 +1,60 @@
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert } from '@/lib/alert';
+import { accountKey } from '@/lib/account-boundary';
+import { ActivityIndicator, Linking, Pressable, Text, View } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-
 import {
   getNotificationPreferences,
   updateMyLocale,
   updateNotificationPreferences,
 } from '@/features/preferences/api';
-import { requestAccountDeletion } from '@/lib/auth';
+import { requestAccountDeletion, signOut } from '@/lib/auth';
 import { useAuthStore } from '@/stores/auth-store';
+import { usePushDevice } from '@/features/notifications/use-push-device';
+import { syncPushDevice } from '@/features/notifications/device';
+import { env } from '@/lib/env';
+import {
+  base,
+  Button,
+  Card,
+  Icon,
+  Label,
+  Notice,
+  PageHeader,
+  Screen,
+  Section,
+  usePalette,
+  selectionKeyProps,
+} from '@/components/loan-ui';
 
 export default function SettingsScreen() {
+  const p = usePalette();
   const { i18n, t } = useTranslation();
   const router = useRouter();
   const session = useAuthStore((state) => state.session);
   const queryClient = useQueryClient();
+  const pushDevice = usePushDevice();
+  const enableDevice = useMutation({
+    mutationFn: () => syncPushDevice(true),
+    onSuccess: (data) =>
+      queryClient.setQueryData(accountKey(session?.user.id, 'push-device'), data),
+  });
+  const logout = useMutation({
+    mutationFn: signOut,
+    onError: () => Alert.alert(t('appName'), t('auth.unavailable')),
+  });
   const preferences = useQuery({
-    queryKey: ['notification-preferences'],
+    queryKey: accountKey(session?.user.id, 'notification-preferences'),
     queryFn: getNotificationPreferences,
     enabled: Boolean(session),
   });
   const update = useMutation({
     mutationFn: updateNotificationPreferences,
-    onSuccess: (data) => queryClient.setQueryData(['notification-preferences'], data),
+    onSuccess: (data) => {
+      queryClient.setQueryData(accountKey(session?.user.id, 'notification-preferences'), data);
+      void queryClient.invalidateQueries({ queryKey: accountKey(session?.user.id, 'push-device') });
+    },
   });
   const localeUpdate = useMutation({ mutationFn: updateMyLocale });
   const selectLanguage = (locale: 'en' | 'vi') => {
@@ -37,138 +67,151 @@ export default function SettingsScreen() {
     onError: () => Alert.alert(t('appName'), t('auth.unavailable')),
   });
   return (
-    <SafeAreaView style={styles.safe}>
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>{t('appName')}</Text>
-        <Text style={styles.title}>{t('settings.title')}</Text>
-        <Text style={styles.help}>{t('settings.help')}</Text>
-        <View accessibilityRole="radiogroup" style={styles.languageGroup}>
-          <Text style={styles.languageLabel}>{t('settings.language')}</Text>
-          <View style={styles.languageOptions}>
-            <LanguageOption
-              active={i18n.language === 'vi'}
-              label={t('settings.vietnamese')}
-              onPress={() => selectLanguage('vi')}
-            />
-            <LanguageOption
-              active={i18n.language !== 'vi'}
-              label={t('settings.english')}
-              onPress={() => selectLanguage('en')}
-            />
-          </View>
-        </View>
-        {!session ? (
-          <View style={styles.signInCard}>
-            <Text style={styles.help}>{t('settings.signInToManage')}</Text>
+    <Screen>
+      <PageHeader back={false} title={t('settings.title')} subtitle={t('ui.settingsSubtitle')} />
+      <Card>
+        <Section>{t('settings.language')}</Section>
+        <View
+          accessibilityRole="radiogroup"
+          accessibilityLabel={t('settings.language')}
+          style={{ gap: 8 }}
+        >
+          {(['vi', 'en'] as const).map((locale) => (
             <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/auth')}
-              style={styles.signInButton}
-            >
-              <Text style={styles.signInButtonText}>{t('auth.signIn')}</Text>
-            </Pressable>
-          </View>
-        ) : preferences.isLoading || !preferences.data ? (
-          preferences.isError ? (
-            <View style={styles.signInCard}>
-              <Text style={styles.help}>{t('settings.preferencesUnavailable')}</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => void preferences.refetch()}
-                style={styles.signInButton}
-              >
-                <Text style={styles.signInButtonText}>{t('settings.tryAgain')}</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <ActivityIndicator color="#1D4ED8" style={styles.loader} />
-          )
-        ) : (
-          <PreferenceControls
-            deletionPending={deletion.isPending}
-            onDelete={() =>
-              Alert.alert(t('settings.deleteAccount'), t('settings.deleteAccountWarning'), [
-                { text: t('loan.cancel'), style: 'cancel' },
+              key={locale}
+              accessibilityRole="radio"
+              {...selectionKeyProps(() => selectLanguage(locale))}
+              aria-checked={i18n.language.startsWith(locale)}
+              accessibilityState={{
+                checked: i18n.language.startsWith(locale),
+                selected: i18n.language.startsWith(locale),
+              }}
+              onPress={() => selectLanguage(locale)}
+              style={({ pressed }) => [
                 {
-                  text: t('settings.deleteAccount'),
-                  style: 'destructive',
-                  onPress: () => deletion.mutate(),
+                  minHeight: 56,
+                  borderWidth: 1,
+                  borderRadius: 16,
+                  borderColor: i18n.language.startsWith(locale) ? p.primary : p.border,
+                  backgroundColor: i18n.language.startsWith(locale) ? p.soft : p.surface,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 16,
+                  gap: 12,
+                  opacity: pressed ? 0.7 : 1,
                 },
-              ])
-            }
-            onUpdate={(next) => update.mutate(next)}
-            updatePending={update.isPending}
-            value={preferences.data}
-          />
-        )}
-      </View>
-    </SafeAreaView>
+              ]}
+            >
+              <Text style={[base.body, { color: p.text, flex: 1 }]}>
+                {t(locale === 'vi' ? 'settings.vietnamese' : 'settings.english')}
+              </Text>
+              {i18n.language.startsWith(locale) && (
+                <Icon name="check" size={20} color={p.primary} />
+              )}
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+      {!session ? (
+        <Card>
+          <Label muted>{t('settings.signInToManage')}</Label>
+          <Button label={t('auth.signIn')} onPress={() => router.push('/auth')} />
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <Section>{t('ui.notifications')}</Section>
+            <Label muted>
+              {t(env.pushReady ? 'settings.pushSchedule' : 'ui.notificationHint')}
+            </Label>
+            {env.pushReady && (
+              <>
+                <Label muted>{t(`settings.pushState.${pushDevice.data ?? 'checking'}`)}</Label>
+                {(pushDevice.isError || enableDevice.isError) && (
+                  <Notice tone="danger">{t('settings.pushSetupError')}</Notice>
+                )}
+                {(pushDevice.data === 'permissionNeeded' ||
+                  pushDevice.isError ||
+                  enableDevice.isError) && (
+                  <Button
+                    label={t('settings.enableDevice')}
+                    loading={enableDevice.isPending}
+                    onPress={() => enableDevice.mutate()}
+                  />
+                )}
+                {pushDevice.data === 'blocked' && (
+                  <Button
+                    kind="secondary"
+                    label={t('settings.openSystemSettings')}
+                    onPress={() => {
+                      void Linking.openSettings().catch(() => undefined);
+                    }}
+                  />
+                )}
+              </>
+            )}
+            {preferences.isLoading ? (
+              <ActivityIndicator color={p.primary} />
+            ) : preferences.isError || !preferences.data ? (
+              <>
+                <Notice tone="danger">{t('settings.preferencesUnavailable')}</Notice>
+                <Button
+                  kind="secondary"
+                  label={t('settings.tryAgain')}
+                  onPress={() => void preferences.refetch()}
+                />
+              </>
+            ) : (
+              <>
+                <Preference
+                  label={t('settings.push')}
+                  value={preferences.data.push_enabled}
+                  disabled={update.isPending}
+                  onChange={(push_enabled) => update.mutate({ ...preferences.data!, push_enabled })}
+                />
+                <Preference
+                  label={t('settings.dueReminders')}
+                  value={preferences.data.due_reminders_enabled}
+                  disabled={update.isPending || !preferences.data.push_enabled}
+                  onChange={(due_reminders_enabled) =>
+                    update.mutate({ ...preferences.data!, due_reminders_enabled })
+                  }
+                />
+                {update.isError && <Notice tone="danger">{t('loan.somethingWentWrong')}</Notice>}
+              </>
+            )}
+          </Card>
+          <Card>
+            <Section>{t('ui.account')}</Section>
+            <Label muted>{session.user.email}</Label>
+            <Button
+              kind="secondary"
+              label={t('auth.signOut')}
+              loading={logout.isPending}
+              onPress={() => logout.mutate()}
+            />
+            <Button
+              kind="quiet"
+              label={t('settings.deleteAccount')}
+              disabled={deletion.isPending}
+              onPress={() =>
+                Alert.alert(t('settings.deleteAccount'), t('settings.deleteAccountWarning'), [
+                  { text: t('loan.cancel'), style: 'cancel' },
+                  {
+                    text: t('settings.deleteAccount'),
+                    style: 'destructive',
+                    onPress: () => deletion.mutate(),
+                  },
+                ])
+              }
+            />
+          </Card>
+        </>
+      )}
+      {localeUpdate.isError && <Notice tone="danger">{t('loan.somethingWentWrong')}</Notice>}
+    </Screen>
   );
 }
-
-function PreferenceControls({
-  deletionPending,
-  onDelete,
-  onUpdate,
-  updatePending,
-  value,
-}: {
-  deletionPending: boolean;
-  onDelete: () => void;
-  onUpdate: (value: { due_reminders_enabled: boolean; push_enabled: boolean }) => void;
-  updatePending: boolean;
-  value: { due_reminders_enabled: boolean; push_enabled: boolean };
-}) {
-  const { t } = useTranslation();
-  return (
-    <>
-      <Preference
-        label={t('settings.push')}
-        value={value.push_enabled}
-        disabled={updatePending}
-        onChange={(push_enabled) => onUpdate({ ...value, push_enabled })}
-      />
-      <Preference
-        label={t('settings.dueReminders')}
-        value={value.due_reminders_enabled}
-        disabled={updatePending || !value.push_enabled}
-        onChange={(due_reminders_enabled) => onUpdate({ ...value, due_reminders_enabled })}
-      />
-      <Pressable
-        accessibilityRole="button"
-        disabled={deletionPending}
-        onPress={onDelete}
-        style={styles.deleteButton}
-      >
-        <Text style={styles.deleteText}>{t('settings.deleteAccount')}</Text>
-      </Pressable>
-    </>
-  );
-}
-
-function LanguageOption({
-  active,
-  label,
-  onPress,
-}: {
-  active: boolean;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[styles.languageOption, active && styles.languageOptionActive]}
-    >
-      <Text style={[styles.languageOptionText, active && styles.languageOptionTextActive]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-}
-
 function Preference({
   label,
   value,
@@ -180,68 +223,52 @@ function Preference({
   disabled: boolean;
   onChange: (value: boolean) => void;
 }) {
+  const p = usePalette();
   return (
-    <View style={styles.item}>
-      <Text style={styles.label}>{label}</Text>
-      <Switch
-        accessibilityLabel={label}
-        disabled={disabled}
-        onValueChange={onChange}
-        value={value}
-      />
-    </View>
+    <Pressable
+      accessibilityRole="switch"
+      {...selectionKeyProps(() => onChange(!value), disabled)}
+      accessibilityLabel={label}
+      accessibilityState={{ checked: value, disabled }}
+      aria-checked={value}
+      aria-disabled={disabled}
+      disabled={disabled}
+      onPress={() => onChange(!value)}
+      style={{
+        minHeight: 64,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 16,
+        borderTopWidth: 1,
+        borderColor: p.border,
+        paddingTop: 12,
+      }}
+    >
+      <Text style={[base.body, { color: p.text, flex: 1 }]}>{label}</Text>
+      <View
+        accessible={false}
+        aria-hidden
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+        style={{
+          width: 44,
+          height: 28,
+          borderRadius: 16,
+          padding: 4,
+          backgroundColor: value ? p.primary : p.muted,
+          alignItems: value ? 'flex-end' : 'flex-start',
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <View
+          style={{
+            width: 20,
+            height: 20,
+            borderRadius: 12,
+            backgroundColor: value ? p.onPrimary : p.surface,
+          }}
+        />
+      </View>
+    </Pressable>
   );
 }
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F9FC' },
-  content: { padding: 24, gap: 16 },
-  loader: { marginTop: 48 },
-  signInCard: { backgroundColor: '#FFFFFF', borderRadius: 16, gap: 16, padding: 24 },
-  signInButton: {
-    alignItems: 'center',
-    backgroundColor: '#1D4ED8',
-    borderRadius: 12,
-    justifyContent: 'center',
-    minHeight: 48,
-  },
-  signInButtonText: { color: '#FFFFFF', fontWeight: '700' },
-  eyebrow: { color: '#1D4ED8', fontWeight: '700' },
-  title: { fontSize: 28, fontWeight: '700', color: '#101828' },
-  help: { color: '#667085', lineHeight: 21, marginBottom: 8 },
-  languageGroup: { gap: 8 },
-  languageLabel: { color: '#344054', fontWeight: '700' },
-  languageOptions: { flexDirection: 'row', gap: 8 },
-  languageOption: {
-    alignItems: 'center',
-    borderColor: '#D0D5DD',
-    borderRadius: 12,
-    borderWidth: 1,
-    flex: 1,
-    minHeight: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 12,
-  },
-  languageOptionActive: { backgroundColor: '#1D4ED8', borderColor: '#1D4ED8' },
-  languageOptionText: { color: '#344054', fontWeight: '700' },
-  languageOptionTextActive: { color: '#FFFFFF' },
-  item: {
-    minHeight: 64,
-    backgroundColor: '#fff',
-    paddingHorizontal: 16,
-    borderRadius: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  label: { color: '#101828', fontWeight: '600' },
-  deleteButton: {
-    minHeight: 52,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#B42318',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  deleteText: { color: '#B42318', fontWeight: '700' },
-});

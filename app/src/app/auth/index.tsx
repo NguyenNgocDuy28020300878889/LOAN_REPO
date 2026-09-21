@@ -1,164 +1,232 @@
-import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useEffect, useRef, useState } from 'react';
+import { Linking, Text, View } from 'react-native';
+import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-
+import { safeReturnPath } from '@/lib/auth-callback';
 import {
-  completeGoogleSignIn,
-  signInWithEmail,
-  signUpWithEmail,
-  startGoogleSignIn,
-} from '@/lib/auth';
+  EMAIL_OTP_RESEND_SECONDS,
+  EMAIL_OTP_LENGTH,
+  emailOtpErrorKey,
+  requestEmailOtp,
+  verifyEmailOtp,
+} from '@/lib/email-otp';
+import { env } from '@/lib/env';
+import { signInWithGoogle } from '@/lib/google-sign-in';
+import { useAuthStore } from '@/stores/auth-store';
+import {
+  base,
+  Brand,
+  Button,
+  Card,
+  Field,
+  Label,
+  Notice,
+  Screen,
+  usePalette,
+} from '@/components/loan-ui';
+
+const localEmail = /^http:\/\/(127\.0\.0\.1|localhost):/.test(env.supabase.url);
 
 export default function AuthScreen() {
+  const p = usePalette();
   const { t } = useTranslation();
   const router = useRouter();
   const { returnTo } = useLocalSearchParams<{ returnTo?: string }>();
+  const session = useAuthStore((state) => state.session);
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [sentTo, setSentTo] = useState('');
+  const [code, setCode] = useState('');
+  const [errorKey, setErrorKey] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const busy = useRef(false);
+  const [retryAt, setRetryAt] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  const remaining = Math.max(0, Math.ceil((retryAt - now) / 1000));
 
-  const finish = () => router.replace(returnTo?.startsWith('/') ? (returnTo as never) : '/');
+  useEffect(() => {
+    if (!retryAt) return;
+    const timer = setInterval(() => {
+      const current = Date.now();
+      setNow(current);
+      if (current >= retryAt) clearInterval(timer);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [retryAt]);
 
-  const submitEmail = async () => {
-    setIsLoading(true);
+  const sendCode = async () => {
+    if (!env.emailOtpReady) return;
+    if (busy.current || Date.now() < retryAt) return;
+    busy.current = true;
+    setLoading(true);
+    setErrorKey('');
     try {
-      if (isSignUp) await signUpWithEmail(email.trim(), password);
-      else await signInWithEmail(email.trim(), password);
-      finish();
-    } catch {
-      Alert.alert(t('appName'), t('auth.unavailable'));
+      const recipient = await requestEmailOtp(sentTo || email);
+      setSentTo(recipient);
+      setCode('');
+      setNow(Date.now());
+      setRetryAt(Date.now() + EMAIL_OTP_RESEND_SECONDS * 1000);
+    } catch (error) {
+      const key = emailOtpErrorKey(error);
+      setErrorKey(key);
+      if (key === 'auth.otpRateLimited') {
+        setNow(Date.now());
+        setRetryAt(Date.now() + EMAIL_OTP_RESEND_SECONDS * 1000);
+      }
     } finally {
-      setIsLoading(false);
+      busy.current = false;
+      setLoading(false);
     }
   };
 
-  const submitGoogle = async () => {
-    setIsLoading(true);
+  const confirmCode = async () => {
+    if (busy.current || !sentTo) return;
+    busy.current = true;
+    setLoading(true);
+    setErrorKey('');
     try {
-      const redirectTo = Linking.createURL('auth/callback');
-      const authorizationUrl = await startGoogleSignIn(redirectTo);
-      const result = await WebBrowser.openAuthSessionAsync(authorizationUrl, redirectTo);
-      if (result.type !== 'success') return;
-      await completeGoogleSignIn(result.url);
-      finish();
-    } catch {
-      Alert.alert(t('appName'), t('auth.unavailable'));
+      await verifyEmailOtp(sentTo, code);
+      setCode('');
+      router.replace(safeReturnPath(returnTo) as never);
+    } catch (error) {
+      setErrorKey(emailOtpErrorKey(error, true));
     } finally {
-      setIsLoading(false);
+      busy.current = false;
+      setLoading(false);
     }
   };
+
+  const continueWithGoogle = async () => {
+    if (!env.googleAuthReady || busy.current) return;
+    busy.current = true;
+    setGoogleLoading(true);
+    setErrorKey('');
+    try {
+      const target = await signInWithGoogle(safeReturnPath(returnTo));
+      if (target) router.replace(target as never);
+    } catch {
+      setErrorKey('auth.googleFailed');
+    } finally {
+      busy.current = false;
+      setGoogleLoading(false);
+    }
+  };
+
+  if (session) return <Redirect href={safeReturnPath(returnTo) as never} />;
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <View style={styles.content}>
-        <Text style={styles.eyebrow}>{t('appName')}</Text>
-        <Text style={styles.title}>{isSignUp ? t('auth.createAccount') : t('auth.signIn')}</Text>
-        <TextInput
-          accessibilityLabel={t('auth.email')}
-          autoCapitalize="none"
-          autoComplete="email"
-          keyboardType="email-address"
-          onChangeText={setEmail}
-          placeholder={t('auth.email')}
-          placeholderTextColor="#667085"
-          style={styles.input}
-          value={email}
-        />
-        <TextInput
-          accessibilityLabel={t('auth.password')}
-          autoComplete={isSignUp ? 'new-password' : 'current-password'}
-          onChangeText={setPassword}
-          placeholder={t('auth.password')}
-          placeholderTextColor="#667085"
-          secureTextEntry
-          style={styles.input}
-          value={password}
-        />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={isSignUp ? t('auth.signUp') : t('auth.signIn')}
-          disabled={isLoading}
-          onPress={() => void submitEmail()}
-          style={({ pressed }) => [styles.primaryButton, (pressed || isLoading) && styles.pressed]}
-        >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.primaryText}>{isSignUp ? t('auth.signUp') : t('auth.signIn')}</Text>
-          )}
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={isLoading}
-          onPress={() => void submitGoogle()}
-          style={({ pressed }) => [
-            styles.secondaryButton,
-            (pressed || isLoading) && styles.pressed,
-          ]}
-        >
-          <Text style={styles.secondaryText}>{t('auth.continueWithGoogle')}</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          disabled={isLoading}
-          onPress={() => setIsSignUp((value) => !value)}
-          style={styles.switchButton}
-        >
-          <Text style={styles.switchText}>
-            {isSignUp ? t('auth.switchToSignIn') : t('auth.switchToSignUp')}
-          </Text>
-        </Pressable>
+    <Screen>
+      <Brand />
+      <View style={{ gap: 12, paddingVertical: 8 }}>
+        <Text accessibilityRole="header" style={[base.amount, { color: p.text }]}>
+          {t(sentTo ? 'auth.otpTitle' : 'auth.signIn')}
+        </Text>
+        <Label muted>
+          {t(sentTo ? 'auth.otpSentTo' : 'auth.googleSubtitle', { email: sentTo })}
+        </Label>
       </View>
-    </SafeAreaView>
+      {returnTo && <Notice>{t('ui.invitePrivate')}</Notice>}
+      {!sentTo && (
+        <Card>
+          <Button
+            label={t('auth.continueWithGoogle')}
+            loading={googleLoading}
+            disabled={!env.googleAuthReady || loading}
+            onPress={() => void continueWithGoogle()}
+          />
+          {!env.googleAuthReady && <Label muted>{t('auth.googleSetupPending')}</Label>}
+        </Card>
+      )}
+      {errorKey ? (
+        <View accessibilityRole="alert" accessibilityLiveRegion="polite">
+          <Notice tone="danger">{t(errorKey)}</Notice>
+        </View>
+      ) : null}
+      <Card>
+        {!sentTo && <Label>{t('auth.emailFallback')}</Label>}
+        {!sentTo && <Label muted>{t('auth.emailFallbackHelp')}</Label>}
+        {localEmail && <Notice>{t('auth.otpLocalNotice')}</Notice>}
+        {!env.emailOtpReady && <Notice tone="warning">{t('auth.otpSetupPending')}</Notice>}
+        {!sentTo ? (
+          <>
+            <Field
+              label={t('auth.email')}
+              placeholder="you@gmail.com"
+              value={email}
+              onChangeText={setEmail}
+              editable={!loading && !googleLoading}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              keyboardType="email-address"
+              maxLength={254}
+              onSubmitEditing={() => void sendCode()}
+            />
+            <Label muted>{t('auth.otpNewAccount')}</Label>
+          </>
+        ) : (
+          <Field
+            label={t('auth.otpCode')}
+            value={code}
+            onChangeText={setCode}
+            editable={!loading}
+            keyboardType="number-pad"
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={EMAIL_OTP_LENGTH}
+            autoFocus
+            hint={t('auth.otpHelp')}
+            style={{ fontSize: 28, letterSpacing: 8, fontVariant: ['tabular-nums'] }}
+            onSubmitEditing={() => void confirmCode()}
+          />
+        )}
+        <Button
+          kind={sentTo ? 'primary' : 'secondary'}
+          label={t(sentTo ? 'auth.otpVerify' : 'auth.otpSend')}
+          icon="forward"
+          loading={loading}
+          disabled={!env.emailOtpReady || googleLoading || (!sentTo && remaining > 0)}
+          onPress={() => void (sentTo ? confirmCode() : sendCode())}
+        />
+        {remaining > 0 && <Label muted>{t('auth.otpRetryIn', { count: remaining })}</Label>}
+        {sentTo && (
+          <>
+            <Button
+              kind="secondary"
+              label={t('auth.otpResend')}
+              disabled={loading || remaining > 0}
+              onPress={() => void sendCode()}
+            />
+            <Button
+              kind="quiet"
+              label={t('auth.otpChangeEmail')}
+              disabled={loading}
+              onPress={() => {
+                setEmail(sentTo);
+                setSentTo('');
+                setCode('');
+                setErrorKey('');
+              }}
+            />
+          </>
+        )}
+      </Card>
+      {!sentTo && (
+        <>
+          <Label muted>{t('auth.googleRecoveryHelp')}</Label>
+          <Button
+            kind="quiet"
+            label={t('auth.googleRecovery')}
+            onPress={() => {
+              void Linking.openURL('https://accounts.google.com/signin/recovery').catch(() =>
+                setErrorKey('auth.unavailable'),
+              );
+            }}
+          />
+        </>
+      )}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F7F9FC' },
-  content: { flex: 1, justifyContent: 'center', padding: 24, gap: 16 },
-  eyebrow: { color: '#1D4ED8', fontSize: 14, fontWeight: '700' },
-  title: { color: '#101828', fontSize: 30, fontWeight: '700', marginBottom: 8 },
-  input: {
-    minHeight: 52,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 12,
-    backgroundColor: '#FFFFFF',
-    color: '#101828',
-    fontSize: 16,
-    paddingHorizontal: 14,
-  },
-  primaryButton: {
-    minHeight: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1D4ED8',
-  },
-  primaryText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  secondaryButton: {
-    minHeight: 52,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#1D4ED8',
-  },
-  secondaryText: { color: '#1D4ED8', fontSize: 16, fontWeight: '700' },
-  switchButton: { alignItems: 'center', padding: 8 },
-  switchText: { color: '#475467', fontSize: 14, fontWeight: '600' },
-  pressed: { opacity: 0.7 },
-});

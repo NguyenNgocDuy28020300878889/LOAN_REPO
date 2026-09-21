@@ -1,9 +1,10 @@
 import 'react-native-url-polyfill/auto';
 
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, processLock, type SupabaseClient } from '@supabase/supabase-js';
 
 import { env } from '@/lib/env';
 import type { Database } from '@/types/database';
+import { sessionStorage } from '@/lib/session-storage';
 
 let client: SupabaseClient<Database> | undefined;
 
@@ -21,6 +22,9 @@ export function getSupabaseClient() {
       autoRefreshToken: true,
       persistSession: true,
       detectSessionInUrl: false,
+      storage: sessionStorage,
+      flowType: 'pkce',
+      lock: processLock,
     },
   });
 

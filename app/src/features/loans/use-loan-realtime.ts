@@ -1,46 +1,48 @@
 import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
-
 import { getSupabaseClient } from '@/lib/supabase';
+import { accountKey } from '@/lib/account-boundary';
+import { useAuthStore } from '@/stores/auth-store';
 
-export function useLoanRealtime(loanIds: string[]) {
+// Mount once inside the account QueryClient. RLS controls delivery; subscribing
+// before the first loan exists also catches membership created on another device.
+export function useLoanRealtime() {
   const queryClient = useQueryClient();
-  const joinedIds = loanIds.join(',');
-
+  const userId = useAuthStore((state) => state.session?.user.id);
   useEffect(() => {
-    if (!loanIds.length) return;
+    if (!userId) return;
     const client = getSupabaseClient();
-    const channels = loanIds.map((loanId) => {
-      const invalidate = () => {
-        void queryClient.invalidateQueries({ queryKey: ['loans'] });
-        void queryClient.invalidateQueries({ queryKey: ['loan-room', loanId] });
-      };
-      return client
-        .channel(`loan-room:${loanId}`)
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'loans', filter: `id=eq.${loanId}` },
-          invalidate,
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'loan_members', filter: `loan_id=eq.${loanId}` },
-          invalidate,
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'repayments', filter: `loan_id=eq.${loanId}` },
-          invalidate,
-        )
-        .on(
-          'postgres_changes',
-          { event: '*', schema: 'public', table: 'loan_events', filter: `loan_id=eq.${loanId}` },
-          invalidate,
-        )
-        .subscribe();
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const invalidate = () => {
+      if (!active) return;
+      // A transaction can update several tables. Refetch once for that burst.
+      if (timer) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (active) void queryClient.invalidateQueries({ queryKey: accountKey(userId) });
+      }, 150);
+    };
+    const channel = client.channel(`loans:${userId}:${Math.random().toString(36).slice(2)}`);
+    for (const table of ['loans', 'loan_members', 'repayments', 'loan_events']) {
+      // DELETE does not apply row security to old records in Postgres Changes.
+      // Deletion semantics are pending a product decision; never subscribe to '*'.
+      for (const event of ['INSERT', 'UPDATE'] as const) {
+        channel.on('postgres_changes', { event, schema: 'public', table }, invalidate);
+      }
+    }
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') invalidate();
+    });
+    const lifecycle = AppState.addEventListener('change', (state) => {
+      if (state === 'active') invalidate();
     });
     return () => {
-      void Promise.all(channels.map((channel) => client.removeChannel(channel)));
+      active = false;
+      clearTimeout(timer);
+      lifecycle.remove();
+      void client.removeChannel(channel);
     };
-  }, [joinedIds, queryClient, loanIds]);
+  }, [queryClient, userId]);
 }

@@ -5,13 +5,30 @@
   },
   "build": {
     "development": {
+      "node": "24.16.0",
+      "environment": "development",
+      "env": { "EXPO_PUBLIC_APP_ENV": "development", "SENTRY_DISABLE_AUTO_UPLOAD": "true" },
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "node": "24.16.0",
+      "environment": "preview",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "staging",
+        "EXPO_PUBLIC_GOOGLE_AUTH_READY": "true",
+        "EXPO_PUBLIC_EMAIL_OTP_READY": "false",
+        "EXPO_PUBLIC_PUSH_READY": "true",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+      },
+      "distribution": "internal",
+      "autoIncrement": true,
+      "android": { "buildType": "apk" }
     },
     "production": {
+      "node": "24.16.0",
+      "environment": "production",
+      "env": { "EXPO_PUBLIC_APP_ENV": "production" },
       "autoIncrement": true
     }
   }

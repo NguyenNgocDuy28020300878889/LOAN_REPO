@@ -1,35 +1,42 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-
 import { createLoan } from '@/features/loans/api';
-import { makeIdempotencyKey } from '@/features/loans/invite';
-import { formatDate, formatMoneyMinor, parseMoneyToMinor } from '@/lib/format';
+import { useIdempotentCommand } from '@/hooks/use-idempotent-command';
+import { formatDate, formatMoneyMinor, localDateOnly } from '@/lib/format';
+import { parseAmountInput, parseDateInput, isoToDateInput } from '@/lib/form-input';
+import { AmountField } from '@/components/amount-field';
+import { DateField } from '@/components/date-field';
 import { useAuthStore } from '@/stores/auth-store';
-
-const today = new Date().toISOString().slice(0, 10);
+import { shareInviteLink } from '@/lib/share-invite';
+import { Alert } from '@/lib/alert';
+import {
+  base,
+  Button,
+  Card,
+  Field,
+  Icon,
+  Notice,
+  PageHeader,
+  Screen,
+  Section,
+  usePalette,
+  selectionKeyProps,
+} from '@/components/loan-ui';
 
 export default function CreateScreen() {
+  const p = usePalette();
+  const command = useIdempotentCommand();
   const { i18n, t } = useTranslation();
   const router = useRouter();
   const session = useAuthStore((state) => state.session);
   const [role, setRole] = useState<'LENDER' | 'BORROWER'>('LENDER');
   const [amount, setAmount] = useState('');
   const [currency, setCurrency] = useState('VND');
-  const [dueDate, setDueDate] = useState(today);
+  const [loanDate, setLoanDate] = useState(() => isoToDateInput(localDateOnly()));
+  const [dueDate, setDueDate] = useState(() => isoToDateInput(localDateOnly()));
   const [purpose, setPurpose] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,13 +47,19 @@ export default function CreateScreen() {
       Alert.alert(t('appName'), t('loan.invalidCurrency'));
       return;
     }
-    if (!isValidIsoDate(dueDate) || dueDate < today) {
+    let loanDateIso: string;
+    let dueDateIso: string;
+    try {
+      loanDateIso = parseDateInput(loanDate);
+      dueDateIso = parseDateInput(dueDate);
+      if (dueDateIso < loanDateIso) throw new Error('INVALID_DATE_ORDER');
+    } catch {
       Alert.alert(t('appName'), t('loan.invalidDueDate'));
       return;
     }
     let principalMinor: number;
     try {
-      principalMinor = parseMoneyToMinor(amount, normalizedCurrency);
+      principalMinor = parseAmountInput(amount, normalizedCurrency);
     } catch {
       Alert.alert(t('appName'), t('loan.invalidAmount'));
       return;
@@ -54,22 +67,46 @@ export default function CreateScreen() {
     const createAndShare = async () => {
       setLoading(true);
       try {
-        const result = await createLoan({
+        const payload = {
           creatorRole: role,
           principalMinor,
           currency: normalizedCurrency,
-          loanDate: today,
-          dueDate,
+          loanDate: loanDateIso,
+          dueDate: dueDateIso,
           purpose: purpose || undefined,
-          idempotencyKey: makeIdempotencyKey(),
-        });
-        await Share.share({
-          message: Linking.createURL(`/invite/${result.invite_token}`),
-          title: t('loan.shareInvite'),
-        });
-        Alert.alert(t('loan.created'), t('loan.inviteShared'), [
-          { text: t('loan.confirm'), onPress: () => router.replace('/') },
-        ]);
+        };
+        const result = await command.run('create_loan', payload, (key) =>
+          createLoan({ ...payload, idempotencyKey: key }),
+        );
+        let shareFailed = false;
+        if (result.invite_token) {
+          try {
+            await shareInviteLink(
+              Linking.createURL(`/invite/${result.invite_token}`),
+              t('loan.shareInvite'),
+              t('loan.inviteShareInstructions'),
+            );
+          } catch {
+            shareFailed = true;
+          }
+        }
+        Alert.alert(
+          t('loan.created'),
+          shareFailed
+            ? `${t('loan.createdHelp')}\n\n${t('loan.inviteShareFailed')}`
+            : t('loan.createdHelp'),
+          [
+            {
+              text: t('loan.confirm'),
+              onPress: () => {
+                command.clearCompleted();
+                setAmount('');
+                setPurpose('');
+                router.replace(`/loan/${result.loan_id}`);
+              },
+            },
+          ],
+        );
       } catch {
         Alert.alert(t('appName'), t('loan.somethingWentWrong'));
       } finally {
@@ -82,8 +119,8 @@ export default function CreateScreen() {
       [
         `${t('loan.role')}: ${role === 'LENDER' ? t('loan.lender') : t('loan.borrower')}`,
         `${t('loan.amount')}: ${formatMoneyMinor(principalMinor, normalizedCurrency, i18n.language)}`,
-        `${t('loan.loanDate')}: ${formatDate(today, i18n.language)}`,
-        `${t('loan.dueDate')}: ${formatDate(dueDate, i18n.language)}`,
+        `${t('loan.loanDate')}: ${formatDate(loanDateIso, i18n.language)}`,
+        `${t('loan.dueDate')}: ${formatDate(dueDateIso, i18n.language)}`,
       ].join('\n'),
       [
         { text: t('loan.cancel'), style: 'cancel' },
@@ -93,127 +130,98 @@ export default function CreateScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Text style={styles.eyebrow}>{t('appName')}</Text>
-        <Text style={styles.title}>{t('loan.create')}</Text>
-        <View style={styles.card}>
-          <Text style={styles.label}>{t('loan.role')}</Text>
-          <View style={styles.row}>
-            {(['LENDER', 'BORROWER'] as const).map((value) => (
-              <Pressable
-                key={value}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: role === value }}
-                onPress={() => setRole(value)}
-                style={[styles.role, role === value && styles.roleSelected]}
-              >
-                <Text style={role === value ? styles.roleTextSelected : styles.roleText}>
-                  {value === 'LENDER' ? t('loan.lender') : t('loan.borrower')}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <Field
-            label={t('loan.amount')}
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-          />
-          <Text style={styles.help}>{t('loan.amountHint')}</Text>
-          <Field
-            label={t('loan.currency')}
-            value={currency}
-            onChangeText={setCurrency}
-            autoCapitalize="characters"
-            maxLength={3}
-          />
-          <Field
-            label={`${t('loan.dueDate')} (YYYY-MM-DD)`}
-            value={dueDate}
-            onChangeText={setDueDate}
-          />
-          <Field
-            label={t('loan.purpose')}
-            value={purpose}
-            onChangeText={setPurpose}
-            maxLength={280}
-          />
-        </View>
-        <Text style={styles.help}>{t('loan.review')}</Text>
-        <Pressable
-          accessibilityRole="button"
-          disabled={loading}
-          onPress={submit}
-          style={({ pressed }) => [styles.primary, (pressed || loading) && styles.pressed]}
+    <Screen
+      footer={<Button label={t('loan.create')} icon="forward" loading={loading} onPress={submit} />}
+    >
+      <PageHeader title={t('loan.create')} subtitle={t('ui.createSubtitle')} />
+      <Card>
+        <Section>{t('loan.role')}</Section>
+        <View
+          accessibilityRole="radiogroup"
+          accessibilityLabel={t('loan.role')}
+          style={{ gap: 12 }}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.primaryText}>{t('loan.create')}</Text>
-          )}
-        </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+          {(['LENDER', 'BORROWER'] as const).map((value) => (
+            <Pressable
+              key={value}
+              accessibilityRole="radio"
+              {...selectionKeyProps(() => setRole(value))}
+              aria-checked={role === value}
+              accessibilityState={{ selected: role === value, checked: role === value }}
+              onPress={() => setRole(value)}
+              style={({ pressed }) => [
+                {
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: 16,
+                  minHeight: 64,
+                  borderWidth: 2,
+                  borderRadius: 16,
+                  borderColor: role === value ? p.primary : p.border,
+                  backgroundColor: role === value ? p.soft : p.surface,
+                  opacity: pressed ? 0.75 : 1,
+                },
+              ]}
+            >
+              <Icon name={value === 'LENDER' ? 'arrow-up' : 'arrow-down'} color={p.primary} />
+              <Text style={[base.section, { color: p.text, flex: 1 }]}>
+                {t(value === 'LENDER' ? 'loan.lender' : 'loan.borrower')}
+              </Text>
+              {role === value && <Icon name="check" color={p.primary} size={20} />}
+            </Pressable>
+          ))}
+        </View>
+      </Card>
+      <Card>
+        <Section>{t('ui.agreementDetails')}</Section>
+        <AmountField
+          label={t('loan.amount')}
+          value={amount}
+          onChangeText={setAmount}
+          keyboardType="decimal-pad"
+          placeholder="0"
+          hint={t('loan.amountHint')}
+          style={{ fontSize: 32, lineHeight: 44, fontWeight: '700', fontVariant: ['tabular-nums'] }}
+        />
+        <Field
+          label={t('loan.currency')}
+          value={currency}
+          onChangeText={setCurrency}
+          autoCapitalize="characters"
+          autoCorrect={false}
+          maxLength={3}
+        />
+        <Field
+          label={t('loan.purpose')}
+          value={purpose}
+          onChangeText={setPurpose}
+          maxLength={280}
+        />
+      </Card>
+      <Card>
+        <Section>{t('ui.dates')}</Section>
+        <DateField
+          label={`${t('loan.loanDate')} (DD/MM/YYYY)`}
+          value={loanDate}
+          onChangeText={setLoanDate}
+          placeholder="DD/MM/YYYY"
+          keyboardType="number-pad"
+          autoCorrect={false}
+          maxLength={10}
+          hint={t('ui.dateHint')}
+        />
+        <DateField
+          label={`${t('loan.dueDate')} (DD/MM/YYYY)`}
+          value={dueDate}
+          onChangeText={setDueDate}
+          placeholder="DD/MM/YYYY"
+          keyboardType="number-pad"
+          autoCorrect={false}
+          maxLength={10}
+        />
+      </Card>
+      <Notice>{t('loan.review')}</Notice>
+    </Screen>
   );
 }
-
-function isValidIsoDate(value: string) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  const date = new Date(`${value}T00:00:00Z`);
-  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
-}
-
-function Field({ label, ...props }: { label: string } & React.ComponentProps<typeof TextInput>) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor="#667085"
-        style={styles.input}
-        {...props}
-      />
-    </View>
-  );
-}
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F7F9FC' },
-  content: { padding: 24, gap: 16 },
-  eyebrow: { color: '#1D4ED8', fontWeight: '700' },
-  title: { fontSize: 28, fontWeight: '700', color: '#101828' },
-  card: { backgroundColor: '#fff', borderRadius: 16, padding: 16, gap: 16 },
-  row: { flexDirection: 'row', gap: 8 },
-  role: {
-    flex: 1,
-    minHeight: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 10,
-  },
-  roleSelected: { borderColor: '#1D4ED8', backgroundColor: '#EFF6FF' },
-  roleText: { color: '#344054', fontWeight: '600' },
-  roleTextSelected: { color: '#1D4ED8', fontWeight: '700' },
-  field: { gap: 6 },
-  label: { color: '#344054', fontWeight: '600' },
-  input: {
-    minHeight: 48,
-    borderWidth: 1,
-    borderColor: '#D0D5DD',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    color: '#101828',
-  },
-  help: { color: '#667085', lineHeight: 20 },
-  primary: {
-    minHeight: 52,
-    backgroundColor: '#1D4ED8',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryText: { color: '#fff', fontWeight: '700', fontSize: 16 },
-  pressed: { opacity: 0.7 },
-});
