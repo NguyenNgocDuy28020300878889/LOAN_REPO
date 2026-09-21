@@ -212,6 +212,18 @@ export const en = {
     declineInvite: 'Decline invitation',
     inviteAccepted: 'Invitation accepted',
     inviteDeclined: 'Invitation declined',
+    recipientEmail: 'Recipient email (optional)',
+    recipientEmailHelp:
+      'If the recipient uses Loan, they will receive a notification directly in the app.',
+    invalidRecipientEmail: 'Please enter a valid recipient email.',
+    cannotInviteSelf: 'You cannot invite your own email address.',
+    pendingInvitesTitle: 'Pending invitations for you',
+    pendingInvitesBadge: '{{count}} new invitations',
+    invitedBy: 'Invited by: {{name}}',
+    invitedAt: 'Sent on: {{date}}',
+    viewPendingInvite: 'View invitation details',
+    inAppInviteNotice:
+      'If the recipient has installed Loan, they will also receive an in-app notification.',
     invalidInvite: 'This invitation link is invalid.',
     signInRequired: 'Sign in to create a shared loan.',
     somethingWentWrong: 'Could not complete this action. Please try again.',

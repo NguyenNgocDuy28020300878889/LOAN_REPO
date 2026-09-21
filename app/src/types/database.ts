@@ -48,6 +48,17 @@ export type Database = {
           note_input: string | null;
           principal_minor_input: number;
           purpose_input: string | null;
+          recipient_email_input?: string | null;
+        };
+        Returns: Json;
+      };
+      get_my_pending_invites: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_pending_invite_detail: { Args: { loan_id_input: string }; Returns: Json };
+      respond_to_invite: {
+        Args: {
+          loan_id_input: string;
+          decision_input: 'accept' | 'decline';
+          idempotency_key_input: string;
         };
         Returns: Json;
       };

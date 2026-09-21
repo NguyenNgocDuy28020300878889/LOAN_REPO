@@ -38,6 +38,7 @@ export default function CreateScreen() {
   const [loanDate, setLoanDate] = useState(() => isoToDateInput(localDateOnly()));
   const [dueDate, setDueDate] = useState(() => isoToDateInput(localDateOnly()));
   const [purpose, setPurpose] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
   const [loading, setLoading] = useState(false);
 
   const submit = () => {
@@ -46,6 +47,17 @@ export default function CreateScreen() {
     if (!/^[A-Z]{3}$/.test(normalizedCurrency)) {
       Alert.alert(t('appName'), t('loan.invalidCurrency'));
       return;
+    }
+    const trimmedEmail = recipientEmail.trim().toLowerCase();
+    if (trimmedEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+        Alert.alert(t('appName'), t('loan.invalidRecipientEmail'));
+        return;
+      }
+      if (session?.user?.email && trimmedEmail === session.user.email.toLowerCase()) {
+        Alert.alert(t('appName'), t('loan.cannotInviteSelf'));
+        return;
+      }
     }
     let loanDateIso: string;
     let dueDateIso: string;
@@ -74,6 +86,7 @@ export default function CreateScreen() {
           loanDate: loanDateIso,
           dueDate: dueDateIso,
           purpose: purpose || undefined,
+          recipientEmail: trimmedEmail || undefined,
         };
         const result = await command.run('create_loan', payload, (key) =>
           createLoan({ ...payload, idempotencyKey: key }),
@@ -90,11 +103,12 @@ export default function CreateScreen() {
             shareFailed = true;
           }
         }
+        const successMessage = trimmedEmail
+          ? `${t('loan.createdHelp')}\n\n${t('loan.inAppInviteNotice')}`
+          : t('loan.createdHelp');
         Alert.alert(
           t('loan.created'),
-          shareFailed
-            ? `${t('loan.createdHelp')}\n\n${t('loan.inviteShareFailed')}`
-            : t('loan.createdHelp'),
+          shareFailed ? `${successMessage}\n\n${t('loan.inviteShareFailed')}` : successMessage,
           [
             {
               text: t('loan.confirm'),
@@ -102,6 +116,7 @@ export default function CreateScreen() {
                 command.clearCompleted();
                 setAmount('');
                 setPurpose('');
+                setRecipientEmail('');
                 router.replace(`/loan/${result.loan_id}`);
               },
             },
@@ -114,19 +129,20 @@ export default function CreateScreen() {
       }
     };
 
-    Alert.alert(
-      t('loan.confirmLoan'),
-      [
-        `${t('loan.role')}: ${role === 'LENDER' ? t('loan.lender') : t('loan.borrower')}`,
-        `${t('loan.amount')}: ${formatMoneyMinor(principalMinor, normalizedCurrency, i18n.language)}`,
-        `${t('loan.loanDate')}: ${formatDate(loanDateIso, i18n.language)}`,
-        `${t('loan.dueDate')}: ${formatDate(dueDateIso, i18n.language)}`,
-      ].join('\n'),
-      [
-        { text: t('loan.cancel'), style: 'cancel' },
-        { text: t('loan.shareInvite'), onPress: () => void createAndShare() },
-      ],
-    );
+    const confirmDetails = [
+      `${t('loan.role')}: ${role === 'LENDER' ? t('loan.lender') : t('loan.borrower')}`,
+      `${t('loan.amount')}: ${formatMoneyMinor(principalMinor, normalizedCurrency, i18n.language)}`,
+      `${t('loan.loanDate')}: ${formatDate(loanDateIso, i18n.language)}`,
+      `${t('loan.dueDate')}: ${formatDate(dueDateIso, i18n.language)}`,
+    ];
+    if (trimmedEmail) {
+      confirmDetails.push(`${t('loan.recipientEmail')}: ${trimmedEmail}`);
+    }
+
+    Alert.alert(t('loan.confirmLoan'), confirmDetails.join('\n'), [
+      { text: t('loan.cancel'), style: 'cancel' },
+      { text: t('loan.shareInvite'), onPress: () => void createAndShare() },
+    ]);
   };
 
   return (
@@ -197,6 +213,17 @@ export default function CreateScreen() {
           value={purpose}
           onChangeText={setPurpose}
           maxLength={280}
+        />
+        <Field
+          label={t('loan.recipientEmail')}
+          value={recipientEmail}
+          onChangeText={setRecipientEmail}
+          placeholder="email@example.com"
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          maxLength={255}
+          hint={t('loan.recipientEmailHelp')}
         />
       </Card>
       <Card>

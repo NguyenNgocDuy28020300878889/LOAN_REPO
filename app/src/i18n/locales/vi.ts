@@ -209,6 +209,18 @@ export const vi = {
     declineInvite: 'Từ chối lời mời',
     inviteAccepted: 'Đã chấp nhận lời mời',
     inviteDeclined: 'Đã từ chối lời mời',
+    recipientEmail: 'Email người nhận (không bắt buộc)',
+    recipientEmailHelp:
+      'Nếu người nhận đã dùng Loan, họ sẽ nhận được thông báo trực tiếp trong ứng dụng.',
+    invalidRecipientEmail: 'Email người nhận không hợp lệ.',
+    cannotInviteSelf: 'Bạn không thể gửi lời mời cho chính email của mình.',
+    pendingInvitesTitle: 'Lời mời đang chờ bạn phản hồi',
+    pendingInvitesBadge: '{{count}} lời mời mới',
+    invitedBy: 'Người mời: {{name}}',
+    invitedAt: 'Gửi lúc: {{date}}',
+    viewPendingInvite: 'Xem chi tiết lời mời',
+    inAppInviteNotice:
+      'Nếu người nhận đã cài ứng dụng Loan, họ cũng sẽ nhận được thông báo trực tiếp.',
     invalidInvite: 'Liên kết lời mời không hợp lệ.',
     signInRequired: 'Hãy đăng nhập để tạo khoản vay chung.',
     somethingWentWrong: 'Không thể hoàn tất thao tác. Vui lòng thử lại.',

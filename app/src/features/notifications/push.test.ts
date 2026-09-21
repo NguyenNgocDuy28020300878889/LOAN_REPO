@@ -57,6 +57,11 @@ describe('push boundaries', () => {
     expect(message.ttl).toBe(120);
     expect(Object.keys(message.data)).toEqual(['loanId', 'userId', 'notificationId']);
     expect(message.body).not.toMatch(/\d/);
+
+    const inviteJob: PushJob = { ...job, kind: 'INVITE_RECEIVED' };
+    const inviteMessage = pushMessage(inviteJob);
+    expect(inviteMessage.body).not.toMatch(/\d/);
+    expect(inviteMessage.body).toContain('lời mời');
   });
   it('distinguishes ticket acceptance from delivery', async () => {
     const { rpc, finish } = setup();

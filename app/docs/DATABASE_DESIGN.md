@@ -15,18 +15,18 @@ Supabase MCP và Context7 không có công cụ callable trong phiên làm việ
 
 ## Bảng và kiểu dữ liệu
 
-| Bảng | Primary key | Quan hệ và mục đích |
-| --- | --- | --- |
-| profiles | id UUID = auth.users.id | Hồ sơ; xóa theo tài khoản Auth |
-| loans | id UUID | created_by → auth.users; principal_minor BIGINT, currency CHAR(3), loan_date/due_date DATE, status ENUM |
-| loan_members | id UUID | loan_id → loans, user_id → auth.users; UNIQUE(loan_id, role), UNIQUE(loan_id, user_id) |
-| loan_invites | id UUID | loan_id → loans, created_by → auth.users; (loan_id, target_role) → loan_members(loan_id, role); token_hash TEXT SHA256 |
-| repayments | id UUID | loan_id → loans; created_by/confirmed_by/disputed_by → auth.users; amount_minor BIGINT, status ENUM |
-| loan_events | id UUID | loan_id → loans, actor_id → auth.users; (loan_id, entity_id) → repayments(loan_id, id) khi có entity; metadata JSONB object |
-| idempotency_keys | id UUID | user_id → auth.users; UNIQUE(user_id, command, key), key UUID; request_hash TEXT, response JSONB |
-| account_deletion_requests | id UUID | user_id → auth.users, UNIQUE(user_id); trạng thái yêu cầu xóa |
-| notification_preferences | user_id UUID | PK đồng thời FK auth.users; hai lựa chọn BOOLEAN |
-| private.account_deletion_audit | id UUID | Audit riêng, former_user_id cố ý không có FK để giữ bản ghi sau khi user bị xóa |
+| Bảng                           | Primary key             | Quan hệ và mục đích                                                                                                         |
+| ------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| profiles                       | id UUID = auth.users.id | Hồ sơ; xóa theo tài khoản Auth                                                                                              |
+| loans                          | id UUID                 | created_by → auth.users; principal_minor BIGINT, currency CHAR(3), loan_date/due_date DATE, status ENUM                     |
+| loan_members                   | id UUID                 | loan_id → loans, user_id → auth.users; UNIQUE(loan_id, role), UNIQUE(loan_id, user_id)                                      |
+| loan_invites                   | id UUID                 | loan_id → loans, created_by → auth.users; (loan_id, target_role) → loan_members(loan_id, role); token_hash TEXT SHA256      |
+| repayments                     | id UUID                 | loan_id → loans; created_by/confirmed_by/disputed_by → auth.users; amount_minor BIGINT, status ENUM                         |
+| loan_events                    | id UUID                 | loan_id → loans, actor_id → auth.users; (loan_id, entity_id) → repayments(loan_id, id) khi có entity; metadata JSONB object |
+| idempotency_keys               | id UUID                 | user_id → auth.users; UNIQUE(user_id, command, key), key UUID; request_hash TEXT, response JSONB                            |
+| account_deletion_requests      | id UUID                 | user_id → auth.users, UNIQUE(user_id); trạng thái yêu cầu xóa                                                               |
+| notification_preferences       | user_id UUID            | PK đồng thời FK auth.users; hai lựa chọn BOOLEAN                                                                            |
+| private.account_deletion_audit | id UUID                 | Audit riêng, former_user_id cố ý không có FK để giữ bản ghi sau khi user bị xóa                                             |
 
 ```mermaid
 erDiagram
@@ -58,13 +58,13 @@ Trigger BEFORE UPDATE dùng statement_timestamp(), search_path rỗng, áp dụn
 
 RLS bật trên cả chín bảng public. Mỗi bảng có policy SELECT/INSERT/UPDATE/DELETE tường minh. Policy không tự cấp GRANT; quyền bảng và policy đều phải cho phép. SECURITY DEFINER RPC kiểm tra auth.uid(), membership, vai trò và trạng thái trước khi ghi.
 
-| Nhóm | SELECT trực tiếp của authenticated | INSERT | UPDATE | DELETE |
-| --- | --- | --- | --- | --- |
-| profiles | Chính mình/người có khoản vay chung | Qua RPC/trigger | Policy chỉ chính mình, GRANT ghi vẫn đóng; dùng ensure_my_profile | Chặn, dùng quy trình xóa tài khoản |
-| loans, loan_members, repayments, loan_events | Thành viên ACCEPTED | Qua RPC | Qua RPC | Chặn |
-| loan_invites, idempotency_keys | Chặn, truy cập qua RPC phù hợp | Qua RPC | Qua RPC | Chặn |
-| account_deletion_requests | Chính mình | Qua RPC | Qua quy trình xử lý | Chặn |
-| notification_preferences | Policy chính mình; GRANT vẫn đóng, dùng RPC | Qua RPC | Qua RPC | Chặn |
+| Nhóm                                         | SELECT trực tiếp của authenticated          | INSERT          | UPDATE                                                            | DELETE                             |
+| -------------------------------------------- | ------------------------------------------- | --------------- | ----------------------------------------------------------------- | ---------------------------------- |
+| profiles                                     | Chính mình/người có khoản vay chung         | Qua RPC/trigger | Policy chỉ chính mình, GRANT ghi vẫn đóng; dùng ensure_my_profile | Chặn, dùng quy trình xóa tài khoản |
+| loans, loan_members, repayments, loan_events | Thành viên ACCEPTED                         | Qua RPC         | Qua RPC                                                           | Chặn                               |
+| loan_invites, idempotency_keys               | Chặn, truy cập qua RPC phù hợp              | Qua RPC         | Qua RPC                                                           | Chặn                               |
+| account_deletion_requests                    | Chính mình                                  | Qua RPC         | Qua quy trình xử lý                                               | Chặn                               |
+| notification_preferences                     | Policy chính mình; GRANT vẫn đóng, dùng RPC | Qua RPC         | Qua RPC                                                           | Chặn                               |
 
 Không thêm policy `using(true)` để mở sửa tài chính. Các policy false là mặc định chặn, không phải quyền CRUD rộng. Service-role/backend tin cậy không bị RLS ràng buộc; tuyệt đối không đưa key này vào app.
 

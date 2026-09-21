@@ -13,7 +13,12 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { accountKey } from '@/lib/account-boundary';
-import { getMyLoans, type LoanSummary } from '@/features/loans/api';
+import {
+  getMyLoans,
+  getMyPendingInvites,
+  type LoanSummary,
+  type PendingInviteSummary,
+} from '@/features/loans/api';
 import { useAuthStore } from '@/stores/auth-store';
 import { formatDate, formatMoneyMinor } from '@/lib/format';
 import {
@@ -29,6 +34,69 @@ import {
   usePalette,
   selectionKeyProps,
 } from '@/components/loan-ui';
+
+const PendingInviteCard = memo(function PendingInviteCard({
+  invite,
+}: {
+  invite: PendingInviteSummary;
+}) {
+  const p = usePalette();
+  const router = useRouter();
+  const { t, i18n } = useTranslation();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() =>
+        router.push({ pathname: '/pending-invite/[id]' as any, params: { id: invite.loan_id } })
+      }
+      style={({ pressed }) => [
+        styles.loan,
+        {
+          backgroundColor: p.surface,
+          borderColor: p.primary,
+          borderWidth: 1.5,
+          opacity: pressed ? 0.75 : 1,
+        },
+      ]}
+    >
+      <View style={styles.between}>
+        <View style={[base.row, { flex: 1 }]}>
+          <View style={[styles.roleIcon, { backgroundColor: p.soft }]}>
+            <Icon name="document" color={p.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[base.fieldLabel, { color: p.primary }]}>
+              {t('loan.pendingInvitesBadge', { count: 1 })}
+            </Text>
+            <Text style={[base.caption, { color: p.muted }]} numberOfLines={1}>
+              {t('loan.invitedBy', { name: invite.creator_name })}
+            </Text>
+          </View>
+        </View>
+        <StatusBadge status="PENDING" />
+      </View>
+      <View style={{ gap: 4 }}>
+        <Text style={[base.title, { color: p.text, fontVariant: ['tabular-nums'] }]}>
+          {formatMoneyMinor(invite.principal_minor, invite.currency, i18n.language)}
+        </Text>
+        <Text style={[base.body, { color: p.text }]} numberOfLines={2}>
+          {invite.purpose || t('loan.sharedLoan')}
+        </Text>
+      </View>
+      <View style={[styles.between, { borderTopWidth: 1, borderColor: p.border, paddingTop: 16 }]}>
+        <Text style={[base.caption, { color: p.muted, flex: 1 }]}>
+          {t('loan.dueDate')}: {formatDate(invite.due_date, i18n.language)}
+        </Text>
+        <View style={[base.row, { gap: 4, alignItems: 'center' }]}>
+          <Text style={[base.caption, { color: p.primary, fontWeight: '700' }]}>
+            {t('loan.reviewInvite')}
+          </Text>
+          <Icon name="forward" size={16} color={p.primary} />
+        </View>
+      </View>
+    </Pressable>
+  );
+});
 
 const LoanCard = memo(function LoanCard({ loan }: { loan: LoanSummary }) {
   const p = usePalette();
@@ -84,11 +152,20 @@ export default function HomeScreen() {
     queryFn: getMyLoans,
     enabled: Boolean(session),
   });
-  const { refetch } = loans;
+  const pendingInvites = useQuery({
+    queryKey: accountKey(session?.user.id, 'pending-invites'),
+    queryFn: getMyPendingInvites,
+    enabled: Boolean(session),
+  });
+  const { refetch: refetchLoans } = loans;
+  const { refetch: refetchPending } = pendingInvites;
   useFocusEffect(
     useCallback(() => {
-      if (session?.user.id) void refetch();
-    }, [session?.user.id, refetch]),
+      if (session?.user.id) {
+        void refetchLoans();
+        void refetchPending();
+      }
+    }, [session?.user.id, refetchLoans, refetchPending]),
   );
   const filtered = useMemo(
     () =>
@@ -132,8 +209,11 @@ export default function HomeScreen() {
             <RefreshControl
               tintColor={p.primary}
               colors={[p.primary]}
-              refreshing={loans.isRefetching}
-              onRefresh={() => void refetch()}
+              refreshing={loans.isRefetching || pendingInvites.isRefetching}
+              onRefresh={() => {
+                void refetchLoans();
+                void refetchPending();
+              }}
             />
           ) : undefined
         }
@@ -153,6 +233,16 @@ export default function HomeScreen() {
               </Text>
               <Label muted>{t('ui.homeSubtitle')}</Label>
             </View>
+            {session && pendingInvites.data && pendingInvites.data.length > 0 ? (
+              <View style={{ gap: 12 }}>
+                <Text accessibilityRole="header" style={[base.fieldLabel, { color: p.primary }]}>
+                  {t('loan.pendingInvitesTitle')} ({pendingInvites.data.length})
+                </Text>
+                {pendingInvites.data.map((inv) => (
+                  <PendingInviteCard key={inv.loan_id} invite={inv} />
+                ))}
+              </View>
+            ) : null}
             <Button
               kind="secondary"
               label={t('loan.openInvite')}
@@ -258,7 +348,7 @@ export default function HomeScreen() {
               <Button
                 kind="secondary"
                 label={t('settings.tryAgain')}
-                onPress={() => void refetch()}
+                onPress={() => void refetchLoans()}
               />
             </Card>
           ) : (

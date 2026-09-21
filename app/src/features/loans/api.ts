@@ -16,10 +16,60 @@ export async function createLoan(input: CreateLoanInput) {
       purpose_input: parsed.purpose ?? null,
       note_input: parsed.note ?? null,
       idempotency_key_input: parsed.idempotencyKey,
+      recipient_email_input: parsed.recipientEmail
+        ? parsed.recipientEmail.trim().toLowerCase()
+        : null,
     }),
   );
   if (error) throw error;
   return data as { loan_id: string; invite_token: string | null; status: 'PENDING' };
+}
+
+export type PendingInviteSummary = {
+  loan_id: string;
+  principal_minor: number;
+  currency: string;
+  loan_date: string;
+  due_date: string;
+  purpose: string | null;
+  note: string | null;
+  my_role: 'LENDER' | 'BORROWER';
+  creator_name: string;
+  invited_at: string;
+};
+
+export async function getMyPendingInvites() {
+  const { data, error } = await runAccountRpc(() =>
+    getSupabaseClient().rpc('get_my_pending_invites'),
+  );
+  if (error) throw error;
+  return data as PendingInviteSummary[];
+}
+
+export async function getPendingInviteDetail(loanId: string) {
+  const { data, error } = await runAccountRpc(() =>
+    getSupabaseClient().rpc('get_pending_invite_detail', {
+      loan_id_input: loanId,
+    }),
+  );
+  if (error) throw error;
+  return data as PendingInviteSummary;
+}
+
+export async function respondToInvite(
+  loanId: string,
+  decision: 'accept' | 'decline',
+  idempotencyKey: string,
+) {
+  const { data, error } = await runAccountRpc(() =>
+    getSupabaseClient().rpc('respond_to_invite', {
+      loan_id_input: loanId,
+      decision_input: decision,
+      idempotency_key_input: idempotencyKey,
+    }),
+  );
+  if (error) throw error;
+  return data as { loan_id: string; status: 'ACTIVE' | 'DECLINED' };
 }
 
 export async function acceptLoanInvite(inviteToken: string, idempotencyKey: string) {

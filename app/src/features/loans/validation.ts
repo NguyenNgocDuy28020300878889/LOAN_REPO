@@ -11,6 +11,7 @@ export const createLoanInputSchema = z
     dueDate: z.string().date(),
     purpose: z.string().max(280).optional(),
     note: z.string().max(2000).optional(),
+    recipientEmail: z.string().trim().email().max(255).optional().or(z.literal('')),
     idempotencyKey: z.string().uuid(),
   })
   .refine((input) => input.dueDate >= input.loanDate, { message: 'INVALID_DUE_DATE' });

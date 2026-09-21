@@ -32,6 +32,7 @@ const server = createServer((req, res) => {
     return;
   }
   if (/^\/invite\/[a-f0-9]{64}$/.test(route)) route = '/invite/[token].html';
+  else if (/^\/pending-invite\/[a-f0-9-]{36}$/.test(route)) route = '/pending-invite/[id].html';
   else if (/^\/loan\/[a-f0-9-]{36}\/repayment$/.test(route)) route = '/loan/[id]/repayment.html';
   else if (/^\/loan\/[a-f0-9-]{36}$/.test(route)) route = '/loan/[id].html';
   else if (route === '/') route = '/index.html';

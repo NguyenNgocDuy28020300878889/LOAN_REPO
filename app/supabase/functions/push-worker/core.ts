@@ -14,17 +14,22 @@ type ProviderResult = { status?: string; id?: string; details?: { error?: string
 
 export function pushMessage(job: PushJob) {
   const due = job.kind.startsWith('DUE_');
+  const isInvite = job.kind === 'INVITE_RECEIVED';
   const vi = job.locale === 'vi';
   return {
     to: job.token,
     title: 'Loan',
     body: vi
-      ? due
-        ? 'Bạn có khoản vay cần xem lại ngày đến hạn. Mở Loan để xem.'
-        : 'Khoản vay của bạn có cập nhật mới. Mở Loan để xem.'
-      : due
-        ? 'A loan is approaching its due date. Open Loan to review.'
-        : 'Your loan has an update. Open Loan to review.',
+      ? isInvite
+        ? 'Bạn có lời mời thỏa thuận khoản vay mới. Mở Loan để xem.'
+        : due
+          ? 'Bạn có khoản vay cần xem lại ngày đến hạn. Mở Loan để xem.'
+          : 'Khoản vay của bạn có cập nhật mới. Mở Loan để xem.'
+      : isInvite
+        ? 'You have a new loan agreement invitation. Open Loan to review.'
+        : due
+          ? 'A loan is approaching its due date. Open Loan to review.'
+          : 'Your loan has an update. Open Loan to review.',
     data: { loanId: job.loan_id, userId: job.user_id, notificationId: job.id },
     channelId: 'loan-updates',
     sound: 'default',

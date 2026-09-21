@@ -21,4 +21,21 @@ describe('createLoanInputSchema', () => {
       'INVALID_DUE_DATE',
     );
   });
+
+  it('accepts a valid recipient email or empty recipient email', () => {
+    expect(
+      createLoanInputSchema.parse({ ...validInput, recipientEmail: 'borrower@example.com' }),
+    ).toMatchObject({ ...validInput, recipientEmail: 'borrower@example.com' });
+
+    expect(createLoanInputSchema.parse({ ...validInput, recipientEmail: '' })).toMatchObject({
+      ...validInput,
+      recipientEmail: '',
+    });
+  });
+
+  it('rejects an invalid recipient email', () => {
+    expect(() =>
+      createLoanInputSchema.parse({ ...validInput, recipientEmail: 'not-an-email' }),
+    ).toThrow();
+  });
 });

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ActivityIndicator, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -11,6 +12,7 @@ import {
   decideRepayment,
   getLoanRepayments,
   getLoanRoom,
+  getPendingInviteDetail,
   manageLoanInvite,
   type Repayment,
   type LoanRoom,
@@ -55,6 +57,20 @@ export default function LoanRoomScreen() {
     queryFn: () => getLoanRepayments(id),
     enabled: isHydrated && Boolean(session && id),
   });
+
+  useEffect(() => {
+    if (room.isError && id && session) {
+      let active = true;
+      void getPendingInviteDetail(id)
+        .then(() => {
+          if (active) router.replace({ pathname: '/pending-invite/[id]' as any, params: { id } });
+        })
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }
+  }, [room.isError, id, session, router]);
   const decision = useMutation({
     mutationFn: ({
       repaymentId,
