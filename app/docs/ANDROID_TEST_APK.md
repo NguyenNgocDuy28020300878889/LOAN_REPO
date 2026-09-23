@@ -2,11 +2,13 @@
 
 ## Ứng viên bảo mật bước 3 — 23/09/2026
 
-- Mã ứng viên là commit `4afbc1b21db80f832b9a30a19f144c90093f5243`. Hai job `quality` và `database` đã thành công tại [GitHub Actions run `35848246553`](https://github.com/NguyenNgocDuy28020300878889/LOAN_REPO/actions/runs/35848246553).
+- Mã bảo mật nằm ở commit `4afbc1b21db80f832b9a30a19f144c90093f5243`; APK được tạo từ commit tài liệu kế tiếp `ff855c2fa371c6ec3884337f9f62efefb43ee219`, không có thay đổi runtime xen giữa. Hai job `quality` và `database` của mã bảo mật đã thành công tại [run `35848246553`](https://github.com/NguyenNgocDuy28020300878889/LOAN_REPO/actions/runs/35848246553); commit APK cũng đạt [CI run `35853485564`](https://github.com/NguyenNgocDuy28020300878889/LOAN_REPO/actions/runs/35853485564).
 - STAGING đã khớp đủ 23 migrations. Migration `20260923170000_security_boundary.sql` thu hồi quyền `PUBLIC EXECUTE` trên helper private; regression 11 assertions đã đạt trực tiếp trên STAGING và rollback fixture.
 - Ứng viên dùng PKCE SHA-256 qua `expo-crypto`, đăng xuất session cục bộ theo thiết bị, chặn quyền biometric/fingerprint không dùng và giữ Android backup ở trạng thái tắt. Hermes Android export đã đạt.
-- Chưa gửi APK mới lên EAS vì thao tác này tải source dự án lên dịch vụ bên ngoài và cần chấp thuận rõ ràng. Vì vậy APK 9 bên dưới vẫn là bản gần nhất, nhưng **không chứa** thay đổi bước 3; không dùng APK 9 để nghiệm thu PKCE/quyền Android mới.
-- Máy hiện không có thiết bị ADB hoặc AVD. Sau khi có APK mới, vẫn cần đối chiếu manifest/chữ ký rồi cài mới và cập nhật trên Android để kiểm tra Google callback, đổi A → B, cold/warm start và quyền thực tế.
+- EAS build [`7b7776f8-75d8-41df-9a8e-562d6dbc57b0`](https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/7b7776f8-75d8-41df-9a8e-562d6dbc57b0) đã `FINISHED` lúc `2026-09-23T11:33:48.197Z`. Metadata: `Loan (staging)`, package `com.loanappmobiles.loanapp.staging`, phiên bản `1.0.0`, versionCode `10`, SDK Expo `54.0.0`, fingerprint `798474191ae3cab47af843e6be15761e8c2f3cce`.
+- [Tải APK 1.0.0 (10)](https://expo.dev/artifacts/eas/Q4e-lgMAAKFRJJOsTSwUqkkXP7gyNHDAebshszqrMlQ.apk). Artifact EAS hết hạn ngày `07/10/2026`; bản đã tải nằm tại `app/.local/loan-staging-1.0.0-10.apk`, kích thước `116437481` byte, SHA256 `7fa21330f05be8d1a1791ef90ba6e2c518183dfda1dd3c5269866421bffc460f`.
+- Kiểm tra tĩnh đạt: chữ ký hợp lệ, ZIP không lỗi, package/version đúng, min SDK 24/target SDK 36, backup tắt, không debuggable, scheme `loan-staging` có mặt, có bốn ABI `arm64-v8a`/`armeabi-v7a`/`x86`/`x86_64`; không có `USE_BIOMETRIC`, `USE_FINGERPRINT`, overlay hoặc quyền bộ nhớ ngoài bị cấm.
+- Máy hiện không có thiết bị ADB hoặc AVD. APK 10 chưa được cài mới/cập nhật để kiểm tra Google callback, đổi A → B, cold/warm start và quyền runtime; kiểm tra tĩnh không thay thế nghiệm thu thiết bị.
 
 ## Bản ứng viên bước 2 — 23/09/2026
 
