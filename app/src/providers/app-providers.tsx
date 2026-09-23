@@ -1,5 +1,6 @@
-import { QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, useState, type PropsWithChildren } from 'react';
+import { AppState, Platform, type AppStateStatus } from 'react-native';
 
 import '@/i18n';
 import '@/lib/monitoring';
@@ -11,6 +12,20 @@ import { NotificationObserver } from '@/features/notifications/observer';
 
 function AccountRealtime() {
   useLoanRealtime();
+  return null;
+}
+
+function NativeQueryFocus() {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const update = (status: AppStateStatus) => focusManager.setFocused(status === 'active');
+    update(AppState.currentState);
+    const subscription = AppState.addEventListener('change', update);
+    return () => {
+      subscription.remove();
+      focusManager.setFocused(undefined);
+    };
+  }, []);
   return null;
 }
 
@@ -33,8 +48,11 @@ function SessionQueries({ children }: PropsWithChildren) {
 
 export function AppProviders({ children }: PropsWithChildren) {
   return (
-    <AuthProvider>
-      <SessionQueries>{children}</SessionQueries>
-    </AuthProvider>
+    <>
+      <NativeQueryFocus />
+      <AuthProvider>
+        <SessionQueries>{children}</SessionQueries>
+      </AuthProvider>
+    </>
   );
 }

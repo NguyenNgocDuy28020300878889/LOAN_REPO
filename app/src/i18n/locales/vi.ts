@@ -222,6 +222,9 @@ export const vi = {
     inAppInviteNotice:
       'Nếu người nhận đã cài ứng dụng Loan, họ cũng sẽ nhận được thông báo trực tiếp.',
     invalidInvite: 'Liên kết lời mời không hợp lệ.',
+    inviteExpired: 'Lời mời đã hết hạn. Hãy đề nghị người gửi tạo link mới.',
+    inviteRevokedLink: 'Lời mời đã bị thu hồi. Hãy đề nghị người gửi tạo link mới.',
+    inviteUnavailable: 'Lời mời đã được sử dụng hoặc không còn khả dụng.',
     signInRequired: 'Hãy đăng nhập để tạo khoản vay chung.',
     somethingWentWrong: 'Không thể hoàn tất thao tác. Vui lòng thử lại.',
     confirmReceived:

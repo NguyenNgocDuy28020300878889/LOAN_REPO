@@ -8,7 +8,11 @@ import {
   getLoanInvitePreview,
   type LoanInvitePreview,
 } from '@/features/loans/api';
-import { isInviteToken } from '@/features/loans/invite';
+import {
+  getInviteUnavailableReason,
+  isInviteToken,
+  type InviteUnavailableReason,
+} from '@/features/loans/invite';
 import { useIdempotentCommand } from '@/hooks/use-idempotent-command';
 import { formatMoneyMinor } from '@/lib/format';
 import { useAuthStore } from '@/stores/auth-store';
@@ -36,19 +40,19 @@ export default function InviteScreen() {
   const isHydrated = useAuthStore((state) => state.isHydrated);
   const [action, setAction] = useState<'accept' | 'decline' | null>(null);
   const [preview, setPreview] = useState<LoanInvitePreview | null>(null);
-  const [previewFailed, setPreviewFailed] = useState(false);
+  const [previewFailure, setPreviewFailure] = useState<InviteUnavailableReason | null>(null);
 
   useEffect(() => {
     setPreview(null);
-    setPreviewFailed(false);
+    setPreviewFailure(null);
     if (!isHydrated || !userId || !isInviteToken(token)) return;
     let active = true;
     void getLoanInvitePreview(token)
       .then((value) => {
         if (active) setPreview(value);
       })
-      .catch(() => {
-        if (active) setPreviewFailed(true);
+      .catch((error) => {
+        if (active) setPreviewFailure(getInviteUnavailableReason(error));
       });
     return () => {
       active = false;
@@ -71,10 +75,30 @@ export default function InviteScreen() {
       Alert.alert(
         result.status === 'ACTIVE' ? t('loan.inviteAccepted') : t('loan.inviteDeclined'),
         result.status === 'ACTIVE' ? t('loan.inviteAcceptedHelp') : t('loan.inviteDeclinedHelp'),
-        [{ text: t('loan.confirm'), onPress: () => router.replace('/') }],
+        [
+          {
+            text: t('loan.confirm'),
+            onPress: () =>
+              result.status === 'ACTIVE'
+                ? router.replace(`/loan/${result.loan_id}`)
+                : router.replace('/'),
+          },
+        ],
       );
-    } catch {
-      Alert.alert(t('appName'), t('loan.somethingWentWrong'));
+    } catch (error) {
+      const reason = getInviteUnavailableReason(error);
+      Alert.alert(
+        t('appName'),
+        t(
+          reason === 'expired'
+            ? 'loan.inviteExpired'
+            : reason === 'revoked'
+              ? 'loan.inviteRevokedLink'
+              : reason === 'used'
+                ? 'loan.inviteUnavailable'
+                : 'loan.somethingWentWrong',
+        ),
+      );
     } finally {
       setAction(null);
     }
@@ -122,12 +146,22 @@ export default function InviteScreen() {
         <Notice>{t('ui.invitePrivate')}</Notice>
       </Screen>
     );
-  if (!isInviteToken(token) || previewFailed)
+  if (!isInviteToken(token) || previewFailure)
     return (
       <Screen>
         <Brand />
         <Card>
-          <Section>{t('loan.invalidInvite')}</Section>
+          <Section>
+            {t(
+              previewFailure === 'expired'
+                ? 'loan.inviteExpired'
+                : previewFailure === 'revoked'
+                  ? 'loan.inviteRevokedLink'
+                  : previewFailure === 'used'
+                    ? 'loan.inviteUnavailable'
+                    : 'loan.invalidInvite',
+            )}
+          </Section>
           <Button kind="secondary" label={t('ui.loansTab')} onPress={() => router.replace('/')} />
         </Card>
       </Screen>

@@ -225,6 +225,9 @@ export const en = {
     inAppInviteNotice:
       'If the recipient has installed Loan, they will also receive an in-app notification.',
     invalidInvite: 'This invitation link is invalid.',
+    inviteExpired: 'This invitation has expired. Ask the sender to create a new link.',
+    inviteRevokedLink: 'This invitation was revoked. Ask the sender for a new link.',
+    inviteUnavailable: 'This invitation has already been used or is no longer available.',
     signInRequired: 'Sign in to create a shared loan.',
     somethingWentWrong: 'Could not complete this action. Please try again.',
     confirmReceived:

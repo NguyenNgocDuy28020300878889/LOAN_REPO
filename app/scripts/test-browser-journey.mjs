@@ -78,6 +78,9 @@ const purpose = 'Synthetic private loan journey';
 const failureMessage = 'Could not complete this action. Please try again.';
 const settleNote = 'Full payment with lost response';
 const pendingNote = 'Proposal automatically cancelled at settlement';
+const disputedNote = 'Proposal disputed after review';
+const cancelledNote = 'Proposal cancelled by its author';
+const lifecyclePurpose = 'Invitation lifecycle journey';
 const reviewUI = process.env.LOAN_UI_REVIEW === '1';
 if (reviewUI) mkdirSync('.local/ui-review', { recursive: true });
 async function reviewLayout(page, name) {
@@ -129,6 +132,30 @@ function rows(table, column, id) {
     },
   );
   return JSON.parse(output.trim());
+}
+
+function expireCurrentInvite(id) {
+  assert.match(id, /^[a-f0-9-]{36}$/);
+  execFileSync(
+    'docker',
+    [
+      'exec',
+      '-i',
+      'supabase_db_loan-local',
+      'psql',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    {
+      input: `update public.loan_invites set created_at=now()-interval '2 minutes',expires_at=now()-interval '1 minute' where loan_id='${id}' and used_at is null and revoked_at is null;`,
+      stdio: ['pipe', 'ignore', 'pipe'],
+      windowsHide: true,
+    },
+  );
 }
 
 async function eventually(check, description, timeout = 15000) {
@@ -339,6 +366,8 @@ try {
   await borrower.getByText('Pending invitations for you (1)', { exact: true }).waitFor();
   await borrower.getByRole('button').filter({ hasText: purpose }).click();
   assert.match(new URL(borrower.url()).pathname, /^\/pending-invite\/[a-f0-9-]{36}$/);
+  await borrower.getByText(purpose, { exact: true }).waitFor();
+  await borrower.goto(origin + invitePath);
   await borrower.getByRole('button', { name: 'Accept invitation', exact: true }).click();
   await eventually(
     () => new URL(borrower.url()).pathname === `/loan/${loanId}`,
@@ -348,8 +377,28 @@ try {
   await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await borrower.getByLabel('Amount (VND)', { exact: true }).pressSequentially('1000');
   assert.equal(await borrower.getByLabel('Amount (VND)', { exact: true }).inputValue(), '1.000');
-  await borrower.getByLabel('Note (optional)', { exact: true }).fill(pendingNote);
+  await borrower.getByLabel('Note (optional)', { exact: true }).fill(disputedNote);
   await reviewLayout(borrower, 'repayment');
+  await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await owner.getByText(disputedNote, { exact: false }).waitFor();
+
+  await borrowerContext.setOffline(true);
+  const disputedPayment = owner.getByText(disputedNote, { exact: false }).locator('..');
+  await disputedPayment.getByRole('button', { name: 'Dispute', exact: true }).click();
+  await borrowerContext.setOffline(false);
+  await borrower.getByText('Disputed', { exact: true }).waitFor();
+
+  await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await borrower.getByLabel('Amount (VND)', { exact: true }).fill('500');
+  await borrower.getByLabel('Note (optional)', { exact: true }).fill(cancelledNote);
+  await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  const cancelledPayment = borrower.getByText(cancelledNote, { exact: false }).locator('..');
+  await cancelledPayment.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await owner.getByText('Cancelled', { exact: true }).waitFor();
+
+  await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
+  await borrower.getByLabel('Amount (VND)', { exact: true }).fill('1000');
+  await borrower.getByLabel('Note (optional)', { exact: true }).fill(pendingNote);
   await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await owner.getByText(pendingNote, { exact: false }).waitFor();
 
@@ -390,18 +439,24 @@ try {
   );
   assert.equal(
     rows('repayments', 'loan_id', loanId).length,
-    2,
+    4,
     'lost response did not duplicate repayment',
   );
   console.log(
-    'PASS anonymous privacy, login return, join, two repayments, lost-response retry after reload',
+    'PASS privacy, login return, direct-link join, dispute/cancel, reconnect and lost-response retry',
   );
 
   const fullPayment = owner.getByText(settleNote, { exact: false }).locator('..');
   ownerState.cancelNext = true;
   await fullPayment.getByRole('button', { name: 'Confirm', exact: true }).click();
   await eventually(() => !ownerState.cancelNext, 'payment confirmation cancelled');
-  assert.ok(rows('repayments', 'loan_id', loanId).every((row) => row.status === 'PENDING'));
+  assert.deepEqual(
+    rows('repayments', 'loan_id', loanId)
+      .map((row) => row.status)
+      .sort(),
+    ['CANCELLED', 'DISPUTED', 'PENDING', 'PENDING'],
+    'cancelling confirmation leaves both pending proposals unchanged',
+  );
   await fullPayment.getByRole('button', { name: 'Confirm', exact: true }).click();
   await borrower.getByText('Remaining · Repaid', { exact: true }).waitFor();
   await borrower
@@ -417,7 +472,7 @@ try {
     rows('repayments', 'loan_id', loanId)
       .map((row) => row.status)
       .sort(),
-    ['CANCELLED', 'CONFIRMED'],
+    ['CANCELLED', 'CANCELLED', 'CONFIRMED', 'DISPUTED'],
   );
   assert.ok(ownerState.changes.length > 0 && borrowerState.changes.length > 0);
   assert.equal(
@@ -431,6 +486,83 @@ try {
   await borrower.screenshot({ path: '.local/loan-settled.png', fullPage: true });
   await reviewLayout(borrower, 'room-settled');
   console.log('PASS live settlement, auto-cancel audit reason, RLS on real WebSocket and room RPC');
+
+  await owner.goto(origin + '/create');
+  await owner.getByLabel('Amount', { exact: true }).fill('2000');
+  await owner.getByLabel('Purpose (optional)', { exact: true }).fill(lifecyclePurpose);
+  await owner.getByLabel('Recipient email (optional)', { exact: true }).fill(users[1].email);
+  const lifecyclePromptStart = ownerState.prompts.length;
+  await owner.getByRole('button', { name: 'Create a loan', exact: true }).click();
+  await owner.getByText(lifecyclePurpose, { exact: true }).waitFor();
+  const lifecycleLoanId = new URL(owner.url()).pathname.split('/').pop();
+  assert.match(lifecycleLoanId, /^[a-f0-9-]{36}$/);
+  assert.equal(ownerState.prompts.length, lifecyclePromptStart + 1);
+  const originalLifecycleUrl = ownerState.prompts
+    .at(-1)
+    .match(/https?:\/\/\S+\/invite\/[a-f0-9]{64}/)?.[0];
+  assert.ok(originalLifecycleUrl);
+
+  await owner.getByRole('button', { name: 'Create a replacement link', exact: true }).click();
+  await eventually(
+    () => ownerState.prompts.length === lifecyclePromptStart + 2,
+    'replacement invite shared',
+  );
+  const replacementUrl = ownerState.prompts
+    .at(-1)
+    .match(/https?:\/\/\S+\/invite\/[a-f0-9]{64}/)?.[0];
+  assert.ok(replacementUrl);
+  await borrower.goto(originalLifecycleUrl);
+  await borrower
+    .getByText('This invitation was revoked. Ask the sender for a new link.', {
+      exact: true,
+    })
+    .waitFor();
+
+  await owner.getByRole('button', { name: 'Revoke invitation link', exact: true }).click();
+  await eventually(
+    () => ownerState.alerts.some((message) => message.includes('Invitation revoked')),
+    'replacement invite revoked',
+  );
+  await borrower.goto(replacementUrl);
+  await borrower
+    .getByText('This invitation was revoked. Ask the sender for a new link.', {
+      exact: true,
+    })
+    .waitFor();
+
+  await owner.getByRole('button', { name: 'Create a replacement link', exact: true }).click();
+  await eventually(
+    () => ownerState.prompts.length === lifecyclePromptStart + 3,
+    'fresh invite shared after revocation',
+  );
+  const expiringUrl = ownerState.prompts.at(-1).match(/https?:\/\/\S+\/invite\/[a-f0-9]{64}/)?.[0];
+  assert.ok(expiringUrl);
+  expireCurrentInvite(lifecycleLoanId);
+  await borrower.goto(expiringUrl);
+  await borrower
+    .getByText('This invitation has expired. Ask the sender to create a new link.', {
+      exact: true,
+    })
+    .waitFor();
+
+  await owner.getByRole('button', { name: 'Create a replacement link', exact: true }).click();
+  await eventually(
+    () => ownerState.prompts.length === lifecyclePromptStart + 4,
+    'expired invite replaced',
+  );
+  const finalLifecycleUrl = ownerState.prompts
+    .at(-1)
+    .match(/https?:\/\/\S+\/invite\/[a-f0-9]{64}/)?.[0];
+  assert.ok(finalLifecycleUrl);
+  await borrower.goto(finalLifecycleUrl);
+  await borrower.getByText(lifecyclePurpose, { exact: true }).waitFor();
+  await borrower.getByRole('button', { name: 'Decline invitation', exact: true }).click();
+  await borrower.getByRole('button', { name: 'Create a loan', exact: true }).waitFor();
+  assert.equal(
+    rows('loans', 'created_by', users[0].id).find((row) => row.id === lifecycleLoanId)?.status,
+    'DECLINED',
+  );
+  console.log('PASS invitation replace, revoke, expiry, replacement and decline journey');
 
   await borrower.goto(origin + '/settings');
   await borrower.getByRole('button', { name: 'Sign out', exact: true }).waitFor();

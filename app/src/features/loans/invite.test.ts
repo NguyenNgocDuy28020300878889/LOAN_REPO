@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isInviteToken, parseInviteMessage } from './invite';
+import { getInviteUnavailableReason, isInviteToken, parseInviteMessage } from './invite';
 
 describe('invite utilities', () => {
   it('accepts the triple-slash link shared by the Android APK and pasted from Gmail', () => {
@@ -27,5 +27,14 @@ describe('invite utilities', () => {
     expect(isInviteToken('a'.repeat(64))).toBe(true);
     expect(isInviteToken('a'.repeat(63))).toBe(false);
     expect(isInviteToken('not-a-token')).toBe(false);
+  });
+  it('turns server invite lifecycle errors into safe user-facing states', () => {
+    expect(getInviteUnavailableReason({ message: 'INVITE_EXPIRED' })).toBe('expired');
+    expect(getInviteUnavailableReason(new Error('INVITE_REVOKED'))).toBe('revoked');
+    expect(getInviteUnavailableReason({ message: 'INVITE_ALREADY_USED' })).toBe('used');
+    expect(getInviteUnavailableReason({ message: 'INVITE_UNAVAILABLE' })).toBe('used');
+    expect(getInviteUnavailableReason({ message: 'database detail that must stay private' })).toBe(
+      'invalid',
+    );
   });
 });
