@@ -70,6 +70,7 @@ const admin = createClient(config.API_URL, config.SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 const users = [];
+const seenMailMessages = new Set();
 const externalRequests = [];
 let loanId;
 let browser;
@@ -170,7 +171,7 @@ async function login(page, email) {
   assert.equal(await page.getByLabel('Password', { exact: true }).count(), 0);
   await page.getByLabel('Email address', { exact: true }).fill(email);
   await page.getByRole('button', { name: 'Send verification code', exact: true }).click();
-  const token = await waitForLocalEmailCode(config.MAILPIT_URL, email);
+  const token = await waitForLocalEmailCode(config.MAILPIT_URL, email, seenMailMessages);
   const codeInput = page.getByLabel('8-digit verification code', { exact: true });
   await codeInput.waitFor();
   assert.ok(await page.getByRole('button', { name: 'Resend code', exact: true }).isDisabled());
@@ -603,8 +604,20 @@ try {
   await borrower.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
   assert.ok(!(await borrower.locator('body').innerText()).includes(purpose));
   assert.equal(financialCalls, 0);
+  await borrower.goto(origin + '/auth');
+  await login(borrower, users[2].email);
+  await borrower.getByRole('button', { name: 'Create a loan', exact: true }).waitFor();
+  await eventually(
+    () => borrowerState.subscriptions >= 2,
+    'same browser profile replaces the old account Realtime channel',
+  );
+  const switchedAccountHome = await borrower.locator('body').innerText();
+  assert.ok(!switchedAccountHome.includes(purpose));
+  assert.ok(!switchedAccountHome.includes(lifecyclePurpose));
   assert.deepEqual(externalRequests, [], 'no cloud HTTP or WebSocket requests');
-  console.log('PASS logout hides financial details; all browser traffic stayed local');
+  console.log(
+    'PASS A-to-B account switch replaces private cache/subscription; all browser traffic stayed local',
+  );
 } finally {
   if (browser) await browser.close();
   await new Promise((resolve) => server.close(resolve));

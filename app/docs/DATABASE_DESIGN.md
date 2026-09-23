@@ -6,6 +6,8 @@ Nguồn nghiệp vụ: `PHASE_0_PRODUCT_LOCK.md`, `KE_HOACH_THUC_THI.md`, các q
 
 Một khoản vay có hai vai trò LENDER/BORROWER; mỗi vai trò tối đa một thành viên, một người không giữ cả hai vai trò. Thành viên được mời có thể chưa có user_id. Chỉ repayment CONFIRMED giảm số dư; người tạo không được tự xác nhận. Link là capability, không ràng buộc email. Giao dịch tài chính dùng RPC atomic và idempotency key. Lịch sử tài chính không được xóa từ client. Chính sách sản phẩm về room sau xóa tài khoản còn mở; lượt này giữ nguyên cơ chế retention hiện có.
 
+> Cập nhật 23/09/2026: lịch sử hiện có 23 migrations và 9 pgTAP files / 168 assertions. Migration `20260923170000_security_boundary.sql` thu hồi `PUBLIC EXECUTE` còn sót trên hai helper RLS trong schema `private` và tắt quyền mặc định cho private functions mới. Các số liệu 16 migrations / 86 assertions ở phần kết quả bên dưới là bằng chứng lịch sử của lượt thiết kế schema ngày 21/09, không phải trạng thái hiện tại.
+
 Supabase MCP và Context7 không có công cụ callable trong phiên làm việc. Chưa xác minh schema Cloud bằng MCP và chưa truy vấn Context7. Đã đọc skill Context7; dùng tài liệu chính thức dưới đây làm nguồn thay thế, không coi là đã hoàn thành hai bước MCP:
 
 - [RLS, grants và index](https://supabase.com/docs/guides/database/postgres/row-level-security)

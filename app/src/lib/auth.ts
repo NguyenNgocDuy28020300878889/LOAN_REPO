@@ -163,9 +163,11 @@ export async function updateRecoveredPassword(password: string) {
 }
 
 export async function signOut() {
-  await unregisterPushDevice();
-  await clearPushTray();
-  const { error } = await getSupabaseClient().auth.signOut();
+  // Push cleanup is best-effort. A stale device binding is also invalidated
+  // when the current Auth session is removed, so cleanup failure must never
+  // trap a user inside the account they asked to leave.
+  await Promise.allSettled([unregisterPushDevice(), clearPushTray()]);
+  const { error } = await getSupabaseClient().auth.signOut({ scope: 'local' });
   if (error) throw error;
   recovery = undefined;
   lastExchange = undefined;

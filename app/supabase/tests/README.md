@@ -1,6 +1,6 @@
 # Local database regression tests
 
-2026-09-21: `schema_completeness.test.sql` adds 20 checks for UUID primary keys, indexed foreign keys, RLS/policy coverage, timestamps, constrained audit references, and direct-write isolation even when table grants are temporarily added inside a rollback-only test. Total: 86 assertions across five files. See `docs/DATABASE_DESIGN.md` for the non-destructive local migration and opt-in seed workflow. Do not reset existing databases to run these tests.
+2026-09-23: the suite has 168 assertions across nine files. `security_boundary.test.sql` checks anonymous/private function execution, worker-only RPCs, raw invite/receipt isolation and direct table mutation privileges. The invitation suites also cover email binding, expiry, revoke/reissue and `loan_id` bypass attempts. See `docs/DATABASE_DESIGN.md` for the non-destructive local migration and opt-in seed workflow. Do not reset existing databases to run these tests.
 
 SQL tests use synthetic users and roll back fixtures. They do not use a linked remote project or a service-role client to assert authorization.
 
@@ -16,7 +16,7 @@ npm run db:test:concurrency
 
 The CLI project is `loan-local`. Database tests explicitly use `--local`; never replace this with a production database URL. The CI database job starts an isolated database from the complete migration history before testing.
 
-`repayment_security.test.sql` checks outsider reads, definer RPC authorization, direct financial/audit writes, self-confirmation, NULL-creator cancellation after account deletion, dispute timestamps, unchanged balance and idempotent audit events.
+`repayment_security.test.sql` checks outsider reads, definer RPC authorization, direct financial/audit writes, self-confirmation, NULL-creator cancellation after account deletion, dispute timestamps, unchanged balance and idempotent audit events. `schema_completeness.test.sql` checks UUID keys, indexed foreign keys, RLS/policy coverage, timestamps, constrained audit references and direct-write isolation even when table grants are temporarily added inside a rollback-only test.
 
 `invite_flow.test.sql` exercises the real create/preview/accept/decline RPCs and anonymous preview denial. `command_receipts.test.sql` covers payload binding, replay, settlement cancellation and audit. `invite_management.test.sql` covers owner-only rotation/revocation and stale tokens. Together: 66 assertions.
 

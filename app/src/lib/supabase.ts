@@ -1,10 +1,18 @@
 import 'react-native-url-polyfill/auto';
 
 import { createClient, processLock, type SupabaseClient } from '@supabase/supabase-js';
+import * as ExpoCrypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 import { env } from '@/lib/env';
 import type { Database } from '@/types/database';
 import { sessionStorage } from '@/lib/session-storage';
+import { installPkceWebCrypto } from '@/lib/pkce-crypto';
+
+installPkceWebCrypto(globalThis, Platform.OS, {
+  digest: (data) => ExpoCrypto.digest(ExpoCrypto.CryptoDigestAlgorithm.SHA256, data),
+  getRandomValues: (array) => ExpoCrypto.getRandomValues(array),
+});
 
 let client: SupabaseClient<Database> | undefined;
 

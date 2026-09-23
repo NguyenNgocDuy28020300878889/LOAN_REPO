@@ -3,13 +3,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   oauth: vi.fn(),
   exchange: vi.fn(),
+  signOut: vi.fn(),
+  unregisterPushDevice: vi.fn(),
+  clearPushTray: vi.fn(),
   setSession: vi.fn(),
   storage: new Map<string, string>(),
 }));
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({
-    auth: { signInWithOAuth: mocks.oauth, exchangeCodeForSession: mocks.exchange },
+    auth: {
+      signInWithOAuth: mocks.oauth,
+      exchangeCodeForSession: mocks.exchange,
+      signOut: mocks.signOut,
+    },
   }),
+}));
+vi.mock('@/features/notifications/device', () => ({
+  unregisterPushDevice: mocks.unregisterPushDevice,
+  clearPushTray: mocks.clearPushTray,
 }));
 vi.mock('@/lib/session-storage', () => ({
   sessionStorage: {
@@ -26,6 +37,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.storage.clear();
   mocks.oauth.mockResolvedValue({ data: { url: 'https://example.supabase.co/auth/v1/authorize' } });
+  mocks.signOut.mockResolvedValue({ error: null });
+  mocks.unregisterPushDevice.mockResolvedValue(undefined);
+  mocks.clearPushTray.mockResolvedValue(undefined);
 });
 const redirect = 'http://127.0.0.1:8082/auth/callback';
 
@@ -98,5 +112,28 @@ describe('OAuth PKCE callback boundary', () => {
     mocks.exchange.mockResolvedValue({ data: { session: null }, error: new Error('invalid code') });
     await expect(completeAuthCallback(`${redirect}?code=valid-code`)).rejects.toThrow();
     expect(mocks.setSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('sign-out account boundary', () => {
+  it('signs out only the current session even when push cleanup fails', async () => {
+    const { signOut } = await import('./auth');
+    mocks.unregisterPushDevice.mockRejectedValueOnce(new Error('offline'));
+    mocks.clearPushTray.mockRejectedValueOnce(new Error('notification service unavailable'));
+
+    await expect(signOut()).resolves.toBeUndefined();
+
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(mocks.setSession).toHaveBeenCalledWith(null);
+    expect(mocks.storage.has('loan.auth-flow')).toBe(false);
+  });
+
+  it('keeps the account state when Supabase cannot end the session', async () => {
+    const { signOut } = await import('./auth');
+    mocks.signOut.mockResolvedValueOnce({ error: new Error('network unavailable') });
+
+    await expect(signOut()).rejects.toThrow('network unavailable');
+
+    expect(mocks.setSession).not.toHaveBeenCalledWith(null);
   });
 });

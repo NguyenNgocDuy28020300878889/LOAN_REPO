@@ -85,17 +85,29 @@ Phạm vi được đối chiếu tại commit `87e1b8fbc607134d20eeb531b9e18ca1
 
 Bước 2 chưa hoàn tất trên native: máy hiện không có thiết bị ADB hoặc AVD, nên chưa có bằng chứng hai thiết bị Android cho Google callback, chấp nhận/từ chối lời mời, bàn phím, cold/warm link, foreground/reconnect và push. APK 9 khớp commit đã được tạo trên EAS để thực hiện phần nghiệm thu này.
 
+**Trạng thái:** tạm giữ phần native còn lại theo yêu cầu ngày 23/09/2026; chuyển sang thực hiện Bước 3.
+
 ## Bước 3 — Kiểm chứng an toàn tài khoản và giao dịch
 
-- [ ] Kiểm tra đổi tài khoản A → đăng xuất → B, request A trả về muộn, cache, subscriptions và phiên sau khi mở lại app.
-- [ ] Thử mất response rồi gửi lại, bấm lặp và hai người xác nhận đồng thời; xác minh idempotency và xử lý nguyên tử.
-- [ ] Kiểm tra RLS/RPC với người chưa đăng nhập, hai bên khoản vay và tài khoản ngoài cuộc.
-- [ ] Đánh giá cảnh báo xác thực/PKCE trên Android đã ghi trong tài liệu APK, quyền native và dữ liệu có thể lọt vào log.
-- [ ] Nếu cần thay database: đọc schema và migration history trước; viết migration mới có phương án khôi phục, không sửa mù hoặc sửa lịch sử đã áp dụng.
+- [x] Kiểm tra đổi tài khoản A → đăng xuất → B, request A trả về muộn, cache, subscriptions và phiên sau khi mở lại app.
+- [x] Thử mất response rồi gửi lại, bấm lặp và hai người xác nhận đồng thời; xác minh idempotency và xử lý nguyên tử.
+- [x] Kiểm tra RLS/RPC với người chưa đăng nhập, hai bên khoản vay và tài khoản ngoài cuộc.
+- [x] Đánh giá cảnh báo xác thực/PKCE, quyền native và dữ liệu có thể lọt vào telemetry; sửa các điểm có bằng chứng.
+- [x] Đọc schema và ma trận quyền trước khi thêm migration; giữ nguyên lịch sử đã áp dụng và bổ sung regression rollback.
 
 **Đầu ra:** sửa lỗi có căn cứ, kiểm thử hồi quy SQL/auth/concurrency phù hợp và báo cáo rủi ro còn lại.
 
 **Điều kiện hoàn thành:** không lẫn dữ liệu giữa tài khoản, không truy cập trái quyền, không ghi trùng hoặc sai số dư trong các kịch bản đã kiểm thử.
+
+### Kết quả local bước 3 — 23/09/2026
+
+- Đăng xuất dùng scope `local`, nên không thu hồi phiên trên thiết bị khác. Lỗi dọn push/notification không còn chặn đăng xuất; binding push cũ tiếp tục bị vô hiệu khi Auth session hiện tại bị xóa.
+- Supabase Auth trên native nhận SHA-256 từ `expo-crypto`, không còn phải chủ động rơi về PKCE `plain`. Adapter giữ nguyên WebCrypto sẵn có trên web và chỉ bổ sung phần còn thiếu trên native.
+- Cấu hình Android tiếp tục tắt backup và chặn thêm `USE_BIOMETRIC`/`USE_FINGERPRINT`; ứng dụng không dùng `requireAuthentication`. Sentry chỉ giữ error code allowlist và vị trí bundle, bỏ request, URL, token, email, dữ liệu tài chính, breadcrumb và context tùy ý.
+- Migration `20260923170000_security_boundary.sql` thu hồi `PUBLIC EXECUTE` còn sót trên hai helper `SECURITY DEFINER` trong schema `private`, giữ quyền tối thiểu cho RLS và tắt quyền mặc định cho helper private tạo sau này.
+- 9 pgTAP files / 168 assertions đạt; schema lint `public/private` sạch; 4 race scenarios đạt. Auth JWT/PKCE/recovery/logout local đạt. `npm run validate` đạt 20 test files / 91 unit tests và 14 web routes.
+- Browser journey xác nhận A đăng xuất rồi B đăng nhập trong cùng profile sẽ thay QueryClient và Realtime channel; dữ liệu A không xuất hiện. Lost-response retry, double-submit, confirm đồng thời, confirm-vs-cancel, join-vs-revoke, outsider RLS và logout đều đạt.
+- Hermes Android export đạt và chứa mã PKCE mới. Chưa có thiết bị/AVD để chạy native, chưa có APK mới để đối chiếu manifest thực tế. Migration thứ 23 chỉ được đưa lên STAGING sau khi commit ứng viên có cả hai job CI xanh.
 
 ## Bước 4 — Hoàn thiện đăng nhập, liên kết mời và thông báo
 

@@ -95,6 +95,18 @@ describe('build environment release gate', () => {
       expect(variants[2].android.package).toBe('com.loanappmobiles.loanapp');
       expect(variants[2].scheme).toBe('loan');
       expect(variants[1].extra.eas.projectId).toBe('same-project');
+      for (const variant of variants) {
+        expect(variant.android.allowBackup).toBe(false);
+        expect(variant.android.blockedPermissions).toEqual(
+          expect.arrayContaining([
+            'android.permission.SYSTEM_ALERT_WINDOW',
+            'android.permission.READ_EXTERNAL_STORAGE',
+            'android.permission.WRITE_EXTERNAL_STORAGE',
+            'android.permission.USE_BIOMETRIC',
+            'android.permission.USE_FINGERPRINT',
+          ]),
+        );
+      }
       vi.stubEnv('EAS_BUILD_PROFILE', 'production');
       vi.stubEnv('EXPO_PUBLIC_APP_ENV', 'development');
       expect(() => configure({ config: {} })).toThrow('Build environment rejected');
