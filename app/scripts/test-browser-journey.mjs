@@ -365,8 +365,11 @@ try {
   await borrower.goto(origin);
   await borrower.getByText('Pending invitations for you (1)', { exact: true }).waitFor();
   await borrower.getByRole('button').filter({ hasText: purpose }).click();
-  assert.match(new URL(borrower.url()).pathname, /^\/pending-invite\/[a-f0-9-]{36}$/);
-  await borrower.getByText(purpose, { exact: true }).waitFor();
+  await eventually(
+    () => /^\/pending-invite\/[a-f0-9-]{36}$/.test(new URL(borrower.url()).pathname),
+    'pending invitation detail route',
+  );
+  await borrower.getByRole('button', { name: 'Accept invitation', exact: true }).waitFor();
   await borrower.goto(origin + invitePath);
   await borrower.getByRole('button', { name: 'Accept invitation', exact: true }).click();
   await eventually(
