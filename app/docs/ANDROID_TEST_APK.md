@@ -1,5 +1,13 @@
 # APK Android kết nối STAGING
 
+## Bản ứng viên bước 2 — 23/09/2026
+
+- EAS build [`f2d9a26c-3c2b-49cd-9b39-f646d70c3634`](https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/f2d9a26c-3c2b-49cd-9b39-f646d70c3634) đã `FINISHED` lúc `2026-09-23T09:46:06.731Z` từ commit `1e464cbfd0a5b9a4e70269e88b9a4fd048bc63f5`, sau khi cả hai job CI xanh.
+- Metadata EAS: `Loan (staging)`, package `com.loanappmobiles.loanapp.staging`, phiên bản `1.0.0`, versionCode `9`, SDK Expo `54.0.0`, fingerprint `c73be088c7bc36655628dc9e2ecf9da32440dc18`.
+- [Tải APK 1.0.0 (9)](https://expo.dev/artifacts/eas/Ss1wJTwC2pCyO2r2fLH2xQhl-qSIlflLhvJyBvIx3Ks.apk). Artifact EAS hết hạn ngày `07/10/2026`; nên lưu file sau khi tải.
+- STAGING đã có đủ 22 migrations, gồm bản sửa vòng đời lời mời. Browser E2E đã đạt luồng tạo khoản vay, đăng nhập, chấp nhận/từ chối, trả nợ, tranh chấp, hủy, tất toán, reconnect, retry, link hết hạn/thu hồi/cấp lại và cách ly tài khoản ngoài cuộc.
+- Chưa nghiệm thu APK 9 trên Android vì máy kiểm tra hiện không có thiết bị ADB hoặc AVD. Việc tải artifact về máy cũng chưa hoàn tất do endpoint tải xuống chỉ đạt khoảng 13 KB/s; vì vậy chưa ghi nhận hash, metadata `aapt`, chữ ký hoặc kết quả cài đặt cho APK 9. Không dùng trạng thái `FINISHED` của EAS thay cho kiểm thử hai thiết bị.
+
 ## Cập nhật thiết bị — 21/09/2026
 
 - Đã cài APK 4 bằng `adb install -r` trên Samsung SM-A115F. Package Manager xác nhận versionCode 4, giữ firstInstallTime 20/09; lastUpdateTime 21/09 06:45:44. App khởi động COLD đạt, vẫn đăng nhập và hiển thị danh sách khoản vay đang chờ.
