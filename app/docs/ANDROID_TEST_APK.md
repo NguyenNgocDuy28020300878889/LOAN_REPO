@@ -1,5 +1,13 @@
 # APK Android kết nối STAGING
 
+## Ứng viên bảo mật bước 3 — 23/09/2026
+
+- Mã ứng viên là commit `4afbc1b21db80f832b9a30a19f144c90093f5243`. Hai job `quality` và `database` đã thành công tại [GitHub Actions run `35848246553`](https://github.com/NguyenNgocDuy28020300878889/LOAN_REPO/actions/runs/35848246553).
+- STAGING đã khớp đủ 23 migrations. Migration `20260923170000_security_boundary.sql` thu hồi quyền `PUBLIC EXECUTE` trên helper private; regression 11 assertions đã đạt trực tiếp trên STAGING và rollback fixture.
+- Ứng viên dùng PKCE SHA-256 qua `expo-crypto`, đăng xuất session cục bộ theo thiết bị, chặn quyền biometric/fingerprint không dùng và giữ Android backup ở trạng thái tắt. Hermes Android export đã đạt.
+- Chưa gửi APK mới lên EAS vì thao tác này tải source dự án lên dịch vụ bên ngoài và cần chấp thuận rõ ràng. Vì vậy APK 9 bên dưới vẫn là bản gần nhất, nhưng **không chứa** thay đổi bước 3; không dùng APK 9 để nghiệm thu PKCE/quyền Android mới.
+- Máy hiện không có thiết bị ADB hoặc AVD. Sau khi có APK mới, vẫn cần đối chiếu manifest/chữ ký rồi cài mới và cập nhật trên Android để kiểm tra Google callback, đổi A → B, cold/warm start và quyền thực tế.
+
 ## Bản ứng viên bước 2 — 23/09/2026
 
 - EAS build [`f2d9a26c-3c2b-49cd-9b39-f646d70c3634`](https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/f2d9a26c-3c2b-49cd-9b39-f646d70c3634) đã `FINISHED` lúc `2026-09-23T09:46:06.731Z` từ commit `1e464cbfd0a5b9a4e70269e88b9a4fd048bc63f5`, sau khi cả hai job CI xanh.
