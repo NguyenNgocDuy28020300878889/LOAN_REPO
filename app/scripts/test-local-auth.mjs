@@ -9,13 +9,12 @@ const bytes = readFileSync(new URL('../.local/local-status.json', import.meta.ur
 const config = JSON.parse(
   bytes.toString(bytes[0] === 0xff ? 'utf16le' : 'utf8').replace(/^\uFEFF/, ''),
 );
-for (const [raw, port] of [
-  [config.API_URL, '54321'],
-  [config.MAILPIT_URL, '54324'],
-]) {
+for (const raw of [config.API_URL, config.MAILPIT_URL]) {
   const url = new URL(raw);
   assert.ok(
-    ['127.0.0.1', 'localhost'].includes(url.hostname) && url.port === port,
+    url.protocol === 'http:' &&
+      ['127.0.0.1', 'localhost'].includes(url.hostname) &&
+      Boolean(url.port),
     'local test endpoints only',
   );
 }

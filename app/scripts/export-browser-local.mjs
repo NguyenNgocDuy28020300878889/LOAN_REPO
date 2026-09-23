@@ -7,7 +7,13 @@ const bytes = readFileSync(new URL('../.local/local-status.json', import.meta.ur
 const config = JSON.parse(
   bytes.toString(bytes[0] === 0xff ? 'utf16le' : 'utf8').replace(/^\uFEFF/, ''),
 );
-assert.equal(config.API_URL, 'http://127.0.0.1:54321');
+const apiUrl = new URL(config.API_URL);
+assert.ok(
+  apiUrl.protocol === 'http:' &&
+    ['127.0.0.1', 'localhost'].includes(apiUrl.hostname) &&
+    Boolean(apiUrl.port),
+  'local API endpoint only',
+);
 assert.match(config.PUBLISHABLE_KEY, /^sb_publishable_/);
 // No .env/cloud configuration, secrets, or stale Metro transforms in this build.
 const env = Object.fromEntries(

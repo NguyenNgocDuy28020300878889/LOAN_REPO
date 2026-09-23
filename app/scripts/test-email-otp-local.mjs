@@ -8,7 +8,13 @@ const bytes = readFileSync('.local/local-status.json');
 const config = JSON.parse(
   bytes.toString(bytes[0] === 0xff ? 'utf16le' : 'utf8').replace(/^\uFEFF/, ''),
 );
-assert.equal(config.API_URL, 'http://127.0.0.1:54321');
+const apiUrl = new URL(config.API_URL);
+assert.ok(
+  apiUrl.protocol === 'http:' &&
+    ['127.0.0.1', 'localhost'].includes(apiUrl.hostname) &&
+    Boolean(apiUrl.port),
+  'local API endpoint only',
+);
 const options = { auth: { persistSession: false, autoRefreshToken: false, flowType: 'pkce' } };
 const client = createClient(config.API_URL, config.PUBLISHABLE_KEY, options);
 const admin = createClient(config.API_URL, config.SERVICE_ROLE_KEY, options);

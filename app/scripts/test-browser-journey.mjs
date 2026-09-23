@@ -13,7 +13,14 @@ const bytes = readFileSync(new URL('../.local/local-status.json', import.meta.ur
 const config = JSON.parse(
   bytes.toString(bytes[0] === 0xff ? 'utf16le' : 'utf8').replace(/^\uFEFF/, ''),
 );
-assert.equal(config.API_URL, 'http://127.0.0.1:54321');
+const apiUrl = new URL(config.API_URL);
+assert.ok(
+  apiUrl.protocol === 'http:' &&
+    ['127.0.0.1', 'localhost'].includes(apiUrl.hostname) &&
+    Boolean(apiUrl.port),
+  'local API endpoint only',
+);
+const realtimeOrigin = config.API_URL.replace(/^http:/, 'ws:').replace(/^https:/, 'wss:');
 const dist = path.resolve('.local/browser-dist');
 assert.ok(existsSync(path.join(dist, 'index.html')), 'Run npm run export:browser:local first');
 const manifest = JSON.parse(readFileSync(path.join(dist, 'acceptance-build.json'), 'utf8'));
@@ -181,7 +188,7 @@ async function trackPage(context) {
     } else await dialog.accept();
   });
   await page.routeWebSocket(/.*/, (socket) => {
-    if (new URL(socket.url()).origin !== 'ws://127.0.0.1:54321') {
+    if (new URL(socket.url()).origin !== realtimeOrigin) {
       externalRequests.push('websocket');
       socket.close();
       return;
@@ -268,6 +275,7 @@ try {
   });
   assert.equal(await dueDateInput.inputValue(), '20/09/2026');
   await owner.getByLabel('Purpose (optional)', { exact: true }).fill(purpose);
+  await owner.getByLabel('Recipient email (optional)', { exact: true }).fill(users[1].email);
   await reviewLayout(owner, 'create');
   ownerState.cancelNext = true;
   await owner.getByRole('button', { name: 'Create a loan', exact: true }).click();
@@ -288,8 +296,10 @@ try {
   assert.equal(Number(createdRow.principal_minor), 123456, 'grouping must not alter principal');
   assert.equal(createdRow.loan_date, '2026-09-16', 'date input must reach storage as ISO');
   assert.equal(createdRow.due_date, '2026-09-20', 'due date must reach storage as ISO');
-  assert.equal(ownerState.prompts.length, 1, 'browser without Web Share offers copyable link');
-  const invitePath = new URL(ownerState.prompts[0]).pathname;
+  assert.equal(ownerState.prompts.length, 1, 'browser without Web Share offers copyable message');
+  const inviteUrl = ownerState.prompts[0].match(/https?:\/\/\S+\/invite\/[a-f0-9]{64}/)?.[0];
+  assert.ok(inviteUrl, 'share fallback includes a complete invitation URL');
+  const invitePath = new URL(inviteUrl).pathname;
   assert.match(invitePath, /^\/invite\/[a-f0-9]{64}$/);
   await observer.getByText(purpose, { exact: true }).waitFor();
   await reviewLayout(observer, 'home');
@@ -325,10 +335,16 @@ try {
   await login(borrower, users[1].email);
   await borrower.getByText(purpose, { exact: false }).waitFor();
   assert.equal(new URL(borrower.url()).pathname, invitePath);
-  await borrower.getByRole('button', { name: 'Accept invitation', exact: true }).click();
-  await borrower.getByText(purpose, { exact: true }).waitFor();
-  await owner.getByRole('button', { name: 'Record repayment', exact: true }).waitFor();
+  await borrower.goto(origin);
+  await borrower.getByText('Pending invitations for you (1)', { exact: true }).waitFor();
   await borrower.getByRole('button').filter({ hasText: purpose }).click();
+  assert.match(new URL(borrower.url()).pathname, /^\/pending-invite\/[a-f0-9-]{36}$/);
+  await borrower.getByRole('button', { name: 'Accept invitation', exact: true }).click();
+  await eventually(
+    () => new URL(borrower.url()).pathname === `/loan/${loanId}`,
+    'in-app invitation opens the accepted loan room',
+  );
+  await owner.getByRole('button', { name: 'Record repayment', exact: true }).waitFor();
   await borrower.getByRole('button', { name: 'Record repayment', exact: true }).click();
   await borrower.getByLabel('Amount (VND)', { exact: true }).pressSequentially('1000');
   assert.equal(await borrower.getByLabel('Amount (VND)', { exact: true }).inputValue(), '1.000');

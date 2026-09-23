@@ -3,7 +3,12 @@ import assert from 'node:assert/strict';
 // Test tooling only. Never import this mailbox reader into application code.
 export async function waitForLocalEmailCode(mailOrigin, email, seen = new Set()) {
   const origin = new URL(mailOrigin);
-  assert.ok(['localhost', '127.0.0.1'].includes(origin.hostname) && origin.port === '54324');
+  assert.ok(
+    origin.protocol === 'http:' &&
+      ['localhost', '127.0.0.1'].includes(origin.hostname) &&
+      Boolean(origin.port),
+    'local mailbox endpoint only',
+  );
   const deadline = Date.now() + 15000;
   while (Date.now() < deadline) {
     const inbox = await (await fetch(`${origin.origin}/api/v1/messages`)).json();
