@@ -145,7 +145,9 @@ export const vi = {
       'Khoản vay đã được lưu và đang chờ người nhận tham gia. Hãy gửi lời mời qua ứng dụng chat. Loan chưa xác nhận được tin nhắn đã gửi hay đã được đọc.',
     autoCancelledRepaid: 'Tự động hủy vì khoản vay đã được xác nhận trả đủ.',
     inviteSignIn:
-      'Đăng nhập để xem chi tiết và quyết định tham gia. Ai có liên kết hợp lệ đều có thể nhận lời mời.',
+      'Đăng nhập để hệ thống kiểm tra quyền nhận trước khi hiển thị chi tiết và cho phép bạn quyết định tham gia.',
+    inviteWebInstallHelp:
+      'Nếu đã cài Loan trên điện thoại, hãy mở lại chính liên kết này trên điện thoại. Nếu chưa cài, hãy cài từ trang Google Play chính thức khi ứng dụng được phát hành rồi mở lại liên kết; bạn vẫn có thể tiếp tục đăng nhập an toàn trên web.',
     amount: 'Số tiền',
     amountHint:
       'Tự thêm dấu chấm hàng nghìn, ví dụ 1.000.000. VND không có phần lẻ; ngoại tệ dùng dấu phẩy cho phần lẻ, ví dụ 1.000,50.',

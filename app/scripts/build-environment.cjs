@@ -4,6 +4,24 @@ const environments = {
   production: 'production',
 };
 
+function validPublicOrigin(value) {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      !url.username &&
+      !url.password &&
+      !url.port &&
+      !url.search &&
+      !url.hash &&
+      url.pathname === '/' &&
+      /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/i.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 // Only report variable names and invariant failures, never credential values.
 function validateBuildEnvironment(values, profile = values.EAS_BUILD_PROFILE) {
   const errors = [];
@@ -74,6 +92,19 @@ function validateBuildEnvironment(values, profile = values.EAS_BUILD_PROFILE) {
       }
     }
   }
+  const appLinkOrigin = values.EXPO_PUBLIC_APP_LINK_ORIGIN ?? '';
+  if (appLinkOrigin && !validPublicOrigin(appLinkOrigin)) {
+    errors.push('EXPO_PUBLIC_APP_LINK_ORIGIN must be a clean public HTTPS origin.');
+  } else if (appEnv === 'production' && !appLinkOrigin) {
+    errors.push('EXPO_PUBLIC_APP_LINK_ORIGIN is required for production App Links.');
+  }
+  if (
+    appEnv !== 'development' &&
+    values.EXPO_PUBLIC_EMAIL_OTP_READY === 'true' &&
+    values.EMAIL_OTP_SMTP_VERIFIED !== 'true'
+  ) {
+    errors.push('EMAIL_OTP_SMTP_VERIFIED=true is required before hosted email OTP is enabled.');
+  }
   return errors;
 }
 
@@ -82,7 +113,12 @@ function assertBuildEnvironment(values, profile) {
   if (errors.length) throw new Error(`Build environment rejected:\n- ${errors.join('\n- ')}`);
 }
 
-module.exports = { environments, validateBuildEnvironment, assertBuildEnvironment };
+module.exports = {
+  environments,
+  validPublicOrigin,
+  validateBuildEnvironment,
+  assertBuildEnvironment,
+};
 
 if (require.main === module) {
   // Expo's loader respects shell/EAS values and loads an untracked .env locally.

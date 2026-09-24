@@ -147,7 +147,9 @@ export const en = {
       'Your loan is saved and awaiting the recipient. Send the invitation through your chat app. Loan cannot confirm whether the message was sent or read.',
     autoCancelledRepaid: 'Automatically cancelled because the loan was confirmed fully repaid.',
     inviteSignIn:
-      'Sign in to review the details and join. Anyone with this valid link can accept it.',
+      'Sign in so Loan can verify your eligibility before showing details and allowing you to respond.',
+    inviteWebInstallHelp:
+      'If Loan is installed on your phone, open this same link there. Otherwise, install it from the official Google Play listing when available and reopen the link; you can still continue securely on the web.',
     amount: 'Amount',
     amountHint:
       'Dots group thousands automatically, for example 1.000.000. VND uses whole amounts; use a comma for decimals in other currencies, for example 1.000,50.',

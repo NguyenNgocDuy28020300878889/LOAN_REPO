@@ -1,5 +1,11 @@
 # Triển khai thông báo Android STAGING
 
+## Kiểm tra bước 4 — 23/09/2026
+
+- Đã rà soát lại client đăng ký thiết bị, khóa tài khoản trong lúc xin quyền/lấy token, tùy chọn tắt push/nhắc hạn, payload trung lập, điều hướng theo user ID, worker lease/retry/receipt và xử lý `DeviceNotRegistered`. Unit/SQL regression hiện có bao phủ các ranh giới này.
+- STAGING vẫn chưa bật gửi thật vì chưa có Expo access token riêng và chưa có thiết bị/AVD trong phiên kiểm tra. Không thay đổi `PUSH_DELIVERY_ENABLED=false`; không gửi canary giả để thay bằng chứng nhận trên thiết bị.
+- Theo tài liệu Expo, ticket chỉ chứng minh Expo nhận yêu cầu; receipt chứng minh FCM/APNs nhận, chưa chứng minh người dùng nhìn thấy. Worker tiếp tục tách `accepted`/`delivered`, kiểm tra receipt và dừng token khi nhận `DeviceNotRegistered`.
+
 ## Trạng thái và phạm vi
 
 Cập nhật A11 21/09/2026 21:09: đã cài APK 7 bằng `adb install -r` (Success), Android xác nhận versionCode 7. Mở Cài đặt thành công; giao diện báo thiết bị đã đăng ký nhận thông báo, STAGING xác nhận 1 thiết bị enabled. Không có crash trong buffer lúc kiểm tra. Chưa gửi push thật: vẫn thiếu file Expo access token riêng. Cron tiếp tục trả HTTP 200 trong chế độ gửi tắt.

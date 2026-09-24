@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -143,6 +143,7 @@ export default function InviteScreen() {
           </Text>
           <Label muted>{t('loan.inviteSignIn')}</Label>
         </View>
+        {Platform.OS === 'web' && <Notice>{t('loan.inviteWebInstallHelp')}</Notice>}
         <Notice>{t('ui.invitePrivate')}</Notice>
       </Screen>
     );

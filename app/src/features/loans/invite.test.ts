@@ -23,6 +23,21 @@ describe('invite utilities', () => {
     expect(parseInviteMessage(`loan-staging://invite/${'a'.repeat(63)}`, 'staging')).toBeNull();
     expect(parseInviteMessage(`loan://invite/${token}`, 'production')).toBe(token);
   });
+  it('accepts only an exact invitation URL on the configured App Link origin', () => {
+    const token = 'c'.repeat(64);
+    const origin = 'https://loan.example.com';
+    expect(parseInviteMessage(`${origin}/invite/${token}`, 'production', origin)).toBe(token);
+    expect(
+      parseInviteMessage(`${origin}/invite/${token}?forwarded=1`, 'production', origin),
+    ).toBeNull();
+    expect(
+      parseInviteMessage(`https://evil.example/invite/${token}`, 'production', origin),
+    ).toBeNull();
+    expect(
+      parseInviteMessage(`${origin}.evil.example/invite/${token}`, 'production', origin),
+    ).toBeNull();
+    expect(parseInviteMessage(`${origin}/invite/${token}`, 'production')).toBeNull();
+  });
   it('accepts only a full hexadecimal server invite token', () => {
     expect(isInviteToken('a'.repeat(64))).toBe(true);
     expect(isInviteToken('a'.repeat(63))).toBe(false);

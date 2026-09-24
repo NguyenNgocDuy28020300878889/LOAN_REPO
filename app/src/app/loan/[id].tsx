@@ -2,12 +2,12 @@ import { useEffect } from 'react';
 import { ActivityIndicator, SectionList, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
-import * as Linking from 'expo-linking';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { accountKey } from '@/lib/account-boundary';
 import { Alert } from '@/lib/alert';
 import { shareInviteLink } from '@/lib/share-invite';
+import { createInviteLink } from '@/features/loans/invite-link';
 import {
   decideRepayment,
   getLoanRepayments,
@@ -102,7 +102,7 @@ export default function LoanRoomScreen() {
       if (result.invite_token) {
         try {
           await shareInviteLink(
-            Linking.createURL(`/invite/${result.invite_token}`),
+            createInviteLink(result.invite_token),
             t('loan.shareInvite'),
             t('loan.inviteShareInstructions'),
           );

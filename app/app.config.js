@@ -9,6 +9,8 @@ module.exports = ({ config }) => {
     throw new Error('EXPO_PUBLIC_APP_ENV must be development, staging, or production.');
   }
   const suffix = appEnv === 'production' ? '' : appEnv === 'staging' ? '.staging' : '.dev';
+  const appLinkOrigin = process.env.EXPO_PUBLIC_APP_LINK_ORIGIN ?? '';
+  const appLinkHost = appLinkOrigin ? new URL(appLinkOrigin).hostname : '';
   // Validate on the build worker, where EAS file variables are materialized.
   if (
     process.env.EAS_BUILD === 'true' &&
@@ -41,6 +43,17 @@ module.exports = ({ config }) => {
       ...(process.env.GOOGLE_SERVICES_JSON
         ? { googleServicesFile: process.env.GOOGLE_SERVICES_JSON }
         : {}),
+      intentFilters: appLinkHost
+        ? [
+            ...(config.android?.intentFilters ?? []),
+            {
+              action: 'VIEW',
+              autoVerify: true,
+              data: [{ scheme: 'https', host: appLinkHost, pathPrefix: '/invite/' }],
+              category: ['BROWSABLE', 'DEFAULT'],
+            },
+          ]
+        : config.android?.intentFilters,
       blockedPermissions: [
         ...new Set([
           ...(config.android?.blockedPermissions ?? []),
@@ -53,7 +66,7 @@ module.exports = ({ config }) => {
       ],
     },
     ios: { ...config.ios, bundleIdentifier: `com.loanappmobiles.loanapp${suffix}` },
-    extra: { ...config.extra, appEnv },
+    extra: { ...config.extra, appEnv, appLinkOrigin },
     plugins: [
       ...(config.plugins ?? []),
       ['expo-notifications', { defaultChannel: 'loan-updates' }],

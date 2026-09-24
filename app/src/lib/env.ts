@@ -27,7 +27,11 @@ export const env = {
   appEnv,
   supabase: supabaseByEnvironment[appEnv],
   sentryDsn: process.env.EXPO_PUBLIC_SENTRY_DSN ?? '',
-  emailOtpReady: process.env.EXPO_PUBLIC_EMAIL_OTP_READY !== 'false',
+  emailOtpReady:
+    appEnv === 'development'
+      ? process.env.EXPO_PUBLIC_EMAIL_OTP_READY !== 'false'
+      : process.env.EXPO_PUBLIC_EMAIL_OTP_READY === 'true',
   googleAuthReady: process.env.EXPO_PUBLIC_GOOGLE_AUTH_READY === 'true',
   pushReady: process.env.EXPO_PUBLIC_PUSH_READY === 'true',
+  appLinkOrigin: process.env.EXPO_PUBLIC_APP_LINK_ORIGIN ?? '',
 } as const;

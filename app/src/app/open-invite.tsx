@@ -11,7 +11,7 @@ export default function OpenInviteScreen() {
   const [message, setMessage] = useState('');
   const [invalid, setInvalid] = useState(false);
   const open = () => {
-    const token = parseInviteMessage(message, env.appEnv);
+    const token = parseInviteMessage(message, env.appEnv, env.appLinkOrigin);
     if (!token) return setInvalid(true);
     setMessage('');
     router.replace({ pathname: '/invite/[token]', params: { token } });

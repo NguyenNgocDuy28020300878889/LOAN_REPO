@@ -1,5 +1,7 @@
 # Đăng nhập LOAN bằng mã email
 
+**Kiểm tra bước 4 — 23/09/2026:** ứng dụng vẫn giữ OTP làm phương án dự phòng, nhưng hosted build nay fail-closed: OTP chỉ hiện khi được bật rõ ràng và build gate yêu cầu xác nhận SMTP đã kiểm chứng. STAGING hiện giữ `EXPO_PUBLIC_EMAIL_OTP_READY=false`; chưa gửi email thật hoặc thay đổi Supabase SMTP.
+
 Cập nhật: 16/09/2026. Gmail là địa chỉ nhận mã cho tài khoản LOAN; ứng dụng không tạo tài khoản Google và không yêu cầu mật khẩu Gmail.
 
 Theo lựa chọn mới nhất, email OTP là phương án **dự phòng cho đăng nhập Google**, dùng cùng email tài khoản. Chưa bật gửi email cloud do thiếu SMTP; Google không tự giải quyết điều kiện này. Xem [Google và khôi phục tài khoản](GOOGLE_SIGN_IN.md).

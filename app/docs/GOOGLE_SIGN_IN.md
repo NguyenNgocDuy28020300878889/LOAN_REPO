@@ -1,5 +1,7 @@
 # Đăng nhập Google và email dự phòng
 
+**Kiểm tra bước 4 — 23/09/2026:** endpoint Auth DEV và STAGING tiếp tục xác nhận Google provider đang bật; yêu cầu authorize dùng PKCE S256 và chuyển đến Google với callback Supabase đúng từng project. Đây là kiểm tra read-only, không đăng nhập tài khoản Google thật. Regression mới giữ `/pending-invite/<uuid>` qua Google/OTP thay vì làm mất đích sau callback. Việc đưa Google consent screen từ Testing sang Production, branding/verification và thử tương tác trên Android vẫn cần tài khoản chủ dự án.
+
 Cập nhật 16/09/2026. Google là lựa chọn chính; email OTP giữ **8 số**. LOAN không tạo tài khoản Gmail, không nhận hoặc lưu mật khẩu Google. Tài khoản LOAN được tạo khi đăng nhập thành công.
 
 ## Trạng thái
@@ -8,6 +10,7 @@ Cập nhật 16/09/2026. Google là lựa chọn chính; email OTP giữ **8 s�
 - DEV và STAGING: đã bật Google bằng Web OAuth client của project `loan-test-508813` do chủ dự án cung cấp. Đã đọc lại provider/callback sau cấu hình và kiểm tra endpoint OAuth thật chuyển đến Google đúng callback từng dự án. Giữ nguyên chính sách OTP/xác minh email; không in Client Secret.
 - Bản web DEV/STAGING được build với `EXPO_PUBLIC_GOOGLE_AUTH_READY=true`. Môi trường chưa cấu hình (bao gồm local) vẫn mặc định `false` và khóa nút Google.
 - Email OTP cloud vẫn chưa sẵn sàng do thiếu SMTP/template; việc bật Google không tự bật gửi email.
+- Hosted build hiện mặc định tắt email OTP. Build gate từ chối `EXPO_PUBLIC_EMAIL_OTP_READY=true` nếu chưa có cờ nội bộ `EMAIL_OTP_SMTP_VERIFIED=true`; cờ xác nhận không thay thế test nhận email thật.
 - Chưa xác nhận đăng nhập bằng tài khoản Google thật hoặc trên thiết bị Android.
 - Đã kiểm tra Chrome trên hai bản web mới: bấm Google tạo yêu cầu PKCE đúng backend và chuyển đến Google với đúng callback. Không có Client Secret trong JavaScript export. Kết quả này chưa thay thế việc chủ tài khoản đăng nhập và xác nhận phiên thật.
 - Nếu nút Google bị khóa khi chạy DEV từ mã nguồn, kiểm tra `.env`: cần `EXPO_PUBLIC_GOOGLE_AUTH_READY=true` với backend DEV trực tuyến, rồi khởi động lại Expo. Đã sửa cờ còn thiếu trên máy này; email giữ `EXPO_PUBLIC_EMAIL_OTP_READY=false`. Cổng 8081 là backend local chưa cấu hình Google; DEV trực tuyến dùng cổng 8082.

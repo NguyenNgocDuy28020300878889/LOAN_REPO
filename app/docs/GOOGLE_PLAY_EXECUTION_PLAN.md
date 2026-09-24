@@ -112,6 +112,8 @@ Bước 2 chưa hoàn tất trên native: máy hiện không có thiết bị AD
 - Commit tài liệu `ff855c2fa371c6ec3884337f9f62efefb43ee219` đạt [CI run `35853485564`](https://github.com/NguyenNgocDuy28020300878889/LOAN_REPO/actions/runs/35853485564). EAS build `7b7776f8-75d8-41df-9a8e-562d6dbc57b0` từ commit này đã `FINISHED` với APK staging `1.0.0 (10)`, fingerprint `798474191ae3cab47af843e6be15761e8c2f3cce`.
 - APK 10 đã qua kiểm tra tĩnh: chữ ký/ZIP hợp lệ, package/version đúng, backup tắt, scheme staging và bốn ABI có mặt, không có biometric/fingerprint/overlay/quyền bộ nhớ ngoài bị cấm. Chưa có thiết bị/AVD để chạy native; kết quả artifact, local và CI không thay thế kiểm thử bản cài.
 
+**Trạng thái:** tạm giữ phần nghiệm thu native còn lại theo yêu cầu ngày 23/09/2026; chuyển sang thực hiện Bước 4.
+
 ## Bước 4 — Hoàn thiện đăng nhập, liên kết mời và thông báo
 
 - [ ] Kiểm chứng Google đăng nhập và callback trên bản Android; chuẩn bị cấu hình cho người dùng ngoài danh sách thử nghiệm.
@@ -124,6 +126,19 @@ Bước 2 chưa hoàn tất trên native: máy hiện không có thiết bị AD
 **Cần chủ dự án cung cấp khi thiếu:** quyền cấu hình Google/Firebase/Supabase, tên miền/DNS và dịch vụ email. Trợ lý có thể chuẩn bị code, tài liệu và kiểm thử local trước.
 
 **Điều kiện hoàn thành:** người dùng thuộc phạm vi phát hành đăng nhập được, mở được lời mời và nhận/tắt thông báo đúng thiết kế.
+
+### Kết quả local/cấu hình bước 4 — 23/09/2026
+
+- Sửa callback giữ đúng `/pending-invite/<uuid>` qua Google hoặc OTP; allowlist vẫn từ chối external URL, callback route và ID/token sai định dạng.
+- Thêm cấu hình `EXPO_PUBLIC_APP_LINK_ORIGIN`: Android chỉ khai báo `autoVerify` cho HTTPS `/invite/` khi origin hợp lệ; production build bị chặn nếu thiếu origin. Link chia sẻ chuyển sang HTTPS khi được cấu hình, còn DEV/STAGING chưa có domain tiếp tục dùng custom scheme.
+- Bổ sung generator `assetlinks.json` kiểm tra package theo môi trường và SHA-256 certificate fingerprints; tài liệu triển khai nêu rõ fingerprint EAS khác Play App Signing và kiểm thử `adb` bắt buộc sau khi có domain.
+- Hosted email OTP mặc định tắt. Build ngoài development từ chối bật OTP nếu chưa có `EMAIL_OTP_SMTP_VERIFIED=true`; STAGING vẫn chưa có SMTP nên không thay đổi cờ hiện tại.
+- Kiểm tra read-only DEV/STAGING đạt: Google provider bật, PKCE S256 authorize chuyển tới Google và callback đúng project. Chưa đăng nhập Google thật hoặc thay đổi consent screen.
+- Push client/worker hiện đã có opt-out, nhắc hạn, dedupe/lease, receipt, token invalidation và nội dung chung. Gửi thật vẫn tắt do thiếu Expo access token và thiết bị nhận; không coi unit/SQL test là bằng chứng giao nhận.
+- `npm run validate` đạt format, lint, TypeScript, 23 test files / 101 tests và web export 14 routes. Auth/recovery local, email OTP local và browser journey đạt toàn bộ luồng lời mời, reconnect, retry, RLS Realtime và đổi tài khoản; cấu hình Supabase/cổng tạm đã được khôi phục, dịch vụ local đã dừng.
+- ADB không phát hiện thiết bị kết nối. Chưa có bằng chứng native cho Google callback, HTTPS App Links hoặc nhận/tắt push thật.
+
+**Phụ thuộc còn mở:** domain/DNS/hosting và Play signing fingerprint cho App Links; quyền Google Auth Platform để đưa Audience sang Production/hoàn tất branding; SMTP đã xác minh; Expo access token và thiết bị Android để nhận push/callback thật.
 
 ## Bước 5 — Hoàn thiện xóa tài khoản và chính sách dữ liệu
 

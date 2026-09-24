@@ -19,13 +19,26 @@ export function getInviteUnavailableReason(error: unknown): InviteUnavailableRea
   return 'invalid';
 }
 
-export function parseInviteMessage(value: string, environment: string): string | null {
+export function parseInviteMessage(
+  value: string,
+  environment: string,
+  appLinkOrigin = '',
+): string | null {
   const scheme = environment === 'production' ? 'loan' : `loan-${environment}`;
   const links = value
     .trim()
     .split(/\s+/)
     .filter((part) => part.includes('://'));
   if (links.length !== 1) return null;
-  const match = new RegExp(`^${scheme}:///?invite/([a-f0-9]{64})$`, 'i').exec(links[0]);
-  return match?.[1] ?? null;
+  const custom = new RegExp(`^${scheme}:///?invite/([a-f0-9]{64})$`, 'i').exec(links[0]);
+  if (custom) return custom[1];
+  if (!appLinkOrigin) return null;
+  try {
+    const link = new URL(links[0]);
+    const expected = new URL(appLinkOrigin);
+    const match = /^\/invite\/([a-f0-9]{64})$/i.exec(link.pathname);
+    return link.origin === expected.origin && !link.search && !link.hash && match ? match[1] : null;
+  } catch {
+    return null;
+  }
 }

@@ -10,6 +10,7 @@ const valid = {
   EXPO_PUBLIC_SUPABASE_PRODUCTION_URL: `https://${ref}.supabase.co`,
   EXPO_PUBLIC_SUPABASE_PRODUCTION_PUBLISHABLE_KEY: 'sb_publishable_synthetic',
   EXPO_EXPECTED_SUPABASE_PROJECT_REF: ref,
+  EXPO_PUBLIC_APP_LINK_ORIGIN: 'https://loan.example.com',
 };
 const legacy = (payload) =>
   `e30.${Buffer.from(JSON.stringify(payload)).toString('base64url')}.signature`;
@@ -36,6 +37,8 @@ describe('build environment release gate', () => {
       { EXPO_PUBLIC_SUPABASE_PRODUCTION_URL: `http://${ref}.supabase.co` },
       { EXPO_PUBLIC_SUPABASE_PRODUCTION_URL: `https://${ref}.supabase.co/?token=secret` },
       { EXPO_PUBLIC_SUPABASE_PRODUCTION_PUBLISHABLE_KEY: 'sb_secret_never_print_me' },
+      { EXPO_PUBLIC_APP_LINK_ORIGIN: 'http://loan.example.com' },
+      { EXPO_PUBLIC_APP_LINK_ORIGIN: 'https://loan.example.com/path' },
       { EXPO_PUBLIC_SUPABASE_PRODUCTION_PUBLISHABLE_KEY: legacy({ role: 'service_role', ref }) },
       {
         EXPO_PUBLIC_SUPABASE_PRODUCTION_PUBLISHABLE_KEY: legacy({
@@ -82,6 +85,24 @@ describe('build environment release gate', () => {
     expect(eas.build.preview.env.SENTRY_DISABLE_AUTO_UPLOAD).toBe('true');
     expect(eas.build.production.env.SENTRY_DISABLE_AUTO_UPLOAD).toBeUndefined();
   });
+  it('keeps hosted email OTP off until SMTP has been explicitly verified', () => {
+    expect(
+      guards.validateBuildEnvironment(
+        { ...valid, EXPO_PUBLIC_EMAIL_OTP_READY: 'true' },
+        'production',
+      ),
+    ).toContain('EMAIL_OTP_SMTP_VERIFIED=true is required before hosted email OTP is enabled.');
+    expect(
+      guards.validateBuildEnvironment(
+        {
+          ...valid,
+          EXPO_PUBLIC_EMAIL_OTP_READY: 'true',
+          EMAIL_OTP_SMTP_VERIFIED: 'true',
+        },
+        'production',
+      ),
+    ).toEqual([]);
+  });
   it('gives each environment separate native identifiers while retaining production identity', () => {
     try {
       vi.stubEnv('EAS_BUILD_PROFILE', '');
@@ -107,6 +128,15 @@ describe('build environment release gate', () => {
           ]),
         );
       }
+      vi.stubEnv('EXPO_PUBLIC_APP_ENV', 'production');
+      vi.stubEnv('EXPO_PUBLIC_APP_LINK_ORIGIN', 'https://loan.example.com');
+      const linked = configure({ config: {} });
+      expect(linked.android.intentFilters).toEqual([
+        expect.objectContaining({
+          autoVerify: true,
+          data: [{ scheme: 'https', host: 'loan.example.com', pathPrefix: '/invite/' }],
+        }),
+      ]);
       vi.stubEnv('EAS_BUILD_PROFILE', 'production');
       vi.stubEnv('EXPO_PUBLIC_APP_ENV', 'development');
       expect(() => configure({ config: {} })).toThrow('Build environment rejected');

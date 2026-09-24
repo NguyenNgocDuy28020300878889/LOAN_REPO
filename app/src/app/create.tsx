@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import * as Linking from 'expo-linking';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { createLoan } from '@/features/loans/api';
@@ -11,6 +10,7 @@ import { AmountField } from '@/components/amount-field';
 import { DateField } from '@/components/date-field';
 import { useAuthStore } from '@/stores/auth-store';
 import { shareInviteLink } from '@/lib/share-invite';
+import { createInviteLink } from '@/features/loans/invite-link';
 import { Alert } from '@/lib/alert';
 import {
   base,
@@ -95,7 +95,7 @@ export default function CreateScreen() {
         if (result.invite_token) {
           try {
             await shareInviteLink(
-              Linking.createURL(`/invite/${result.invite_token}`),
+              createInviteLink(result.invite_token),
               t('loan.shareInvite'),
               t('loan.inviteShareInstructions'),
             );
