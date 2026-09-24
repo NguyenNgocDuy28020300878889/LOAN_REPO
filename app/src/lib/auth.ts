@@ -180,5 +180,20 @@ export async function requestAccountDeletion() {
     getSupabaseClient().rpc('request_account_deletion'),
   );
   if (error) throw error;
-  return data as { id: string; status: 'PENDING' | 'PROCESSING' | 'COMPLETED' };
+  return data as AccountDeletionRequest;
+}
+
+export type AccountDeletionRequest = {
+  id: string;
+  requested_at: string;
+  updated_at: string;
+  status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
+};
+
+export async function getAccountDeletionRequest() {
+  const { data, error } = await runAccountRpc(() =>
+    getSupabaseClient().rpc('get_my_account_deletion_request'),
+  );
+  if (error) throw error;
+  return data as AccountDeletionRequest | null;
 }

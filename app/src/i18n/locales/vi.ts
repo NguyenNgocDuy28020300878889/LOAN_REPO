@@ -140,6 +140,35 @@ export const vi = {
     deletionRequested:
       'Đã ghi nhận yêu cầu xóa. Yêu cầu sẽ được xử lý sau khi dịch vụ xóa được bảo vệ được bật.',
   },
+  deletion: {
+    title: 'Xóa tài khoản Loan',
+    subtitle: 'Gửi và theo dõi yêu cầu xóa tài khoản của bạn.',
+    webResource:
+      'Đây là trang yêu cầu xóa tài khoản chính thức của Loan. Bạn có thể hoàn tất yêu cầu trên web mà không cần cài lại ứng dụng.',
+    whatHappens: 'DỮ LIỆU VÀ TRẠNG THÁI',
+    profileRemoved: 'Tài khoản đăng nhập và hồ sơ cá nhân sẽ được xóa khi yêu cầu được xử lý.',
+    sharedHistory:
+      'Lịch sử khoản vay chung hiện được dự kiến giữ ở dạng ẩn danh. Thời hạn lưu và cách xử lý khoản vay đang hoạt động vẫn đang được hoàn thiện trước khi dịch vụ xóa được bật.',
+    processingPending:
+      'Ứng dụng hiện ghi nhận và hiển thị trạng thái yêu cầu. Việc xóa thực tế chưa được bật trên môi trường phát hành.',
+    signInRequired: 'Đăng nhập đúng tài khoản để gửi hoặc xem trạng thái yêu cầu xóa.',
+    statusUnavailable: 'Không thể tải trạng thái yêu cầu. Hãy kiểm tra kết nối và thử lại.',
+    request: 'YÊU CẦU CỦA BẠN',
+    confirmation:
+      'Vì đây là thao tác nhạy cảm, phiên đăng nhập phải được tạo trong vòng 15 phút gần nhất.',
+    requestFailed: 'Chưa thể ghi nhận yêu cầu. Vui lòng thử lại.',
+    freshSignInRequired: 'Phiên hiện tại đã cũ. Hãy đăng nhập lại để xác nhận danh tính.',
+    signInAgain: 'Đăng nhập lại để tiếp tục',
+    submit: 'Gửi yêu cầu xóa tài khoản',
+    requestRecorded: 'Yêu cầu đã được ghi nhận',
+    status: {
+      PENDING: 'Yêu cầu đang chờ xử lý.',
+      PROCESSING: 'Yêu cầu đang được xử lý.',
+      COMPLETED: 'Yêu cầu đã hoàn tất.',
+      CANCELLED: 'Yêu cầu trước đã được hủy. Bạn có thể gửi yêu cầu mới.',
+      FAILED: 'Lần xử lý trước không thành công. Bạn có thể gửi lại yêu cầu.',
+    },
+  },
   loan: {
     createdHelp:
       'Khoản vay đã được lưu và đang chờ người nhận tham gia. Hãy gửi lời mời qua ứng dụng chat. Loan chưa xác nhận được tin nhắn đã gửi hay đã được đọc.',

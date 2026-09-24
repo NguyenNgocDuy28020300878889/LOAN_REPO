@@ -142,6 +142,37 @@ export const en = {
     deletionRequested:
       'Deletion request recorded. It will be processed after the protected deletion service is enabled.',
   },
+  deletion: {
+    title: 'Delete your Loan account',
+    subtitle: 'Submit and track your account deletion request.',
+    webResource:
+      'This is Loan’s official account deletion request page. You can complete the request on the web without reinstalling the app.',
+    whatHappens: 'DATA AND STATUS',
+    profileRemoved:
+      'Your sign-in account and personal profile will be deleted when the request is processed.',
+    sharedHistory:
+      'Shared loan history is currently planned to remain in anonymous form. Its retention period and the treatment of active loans must be finalized before deletion processing is enabled.',
+    processingPending:
+      'The app currently records and displays request status. Actual deletion is not enabled in the release environment yet.',
+    signInRequired: 'Sign in to the correct account to submit or view its deletion request.',
+    statusUnavailable:
+      'The request status could not be loaded. Check your connection and try again.',
+    request: 'YOUR REQUEST',
+    confirmation:
+      'Because this is a sensitive action, your sign-in session must have been created within the last 15 minutes.',
+    requestFailed: 'The request could not be recorded. Please try again.',
+    freshSignInRequired: 'This session is too old. Sign in again to confirm your identity.',
+    signInAgain: 'Sign in again to continue',
+    submit: 'Request account deletion',
+    requestRecorded: 'Request recorded',
+    status: {
+      PENDING: 'Your request is waiting to be processed.',
+      PROCESSING: 'Your request is being processed.',
+      COMPLETED: 'Your request has been completed.',
+      CANCELLED: 'The previous request was cancelled. You can submit a new request.',
+      FAILED: 'The previous attempt failed. You can submit the request again.',
+    },
+  },
   loan: {
     createdHelp:
       'Your loan is saved and awaiting the recipient. Send the invitation through your chat app. Loan cannot confirm whether the message was sent or read.',

@@ -258,6 +258,12 @@ try {
     Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }),
   );
   const { page: owner, state: ownerState } = await trackPage(ownerContext);
+  await owner.goto(origin + '/account-deletion');
+  await owner
+    .getByText('This is Loan’s official account deletion request page.', { exact: false })
+    .waitFor();
+  await owner.getByRole('button', { name: 'Sign in', exact: true }).waitFor();
+  await reviewLayout(owner, 'account-deletion-public');
   await owner.goto(origin + '/auth');
   await owner.getByLabel('Email address', { exact: true }).waitFor();
   await reviewLayout(owner, 'auth');

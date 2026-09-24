@@ -142,11 +142,13 @@ Bước 2 chưa hoàn tất trên native: máy hiện không có thiết bị AD
 
 ## Bước 5 — Hoàn thiện xóa tài khoản và chính sách dữ liệu
 
-- [ ] Rà soát luồng xóa hiện tại; nối giao diện với quy trình thực thi, xác thực lại, trạng thái xử lý, retry và audit.
+- [ ] Đang làm: đã thêm fresh sign-in 15 phút, trạng thái riêng theo tài khoản, retry idempotent và chặn `PROCESSING` quay về `PENDING`. Worker/audit thực thi vẫn giữ tắt đến khi chốt policy.
 - [ ] Chốt trước cách xử lý khoản vay còn hoạt động, lịch sử chung, thông tin cá nhân và quyền xem phòng sau xóa; không tự quyết định vấn đề nghiệp vụ còn mở.
 - [ ] Thực hiện xóa/ẩn danh theo quyết định đã chốt, kiểm thử cả tài khoản bị xóa và người còn lại.
-- [ ] Tạo trang web để người dùng gửi yêu cầu xóa tài khoản bên ngoài ứng dụng.
+- [ ] Đang làm: đã tạo route web `/account-deletion` cho phép đăng nhập, gửi và xem trạng thái yêu cầu mà không cần cài lại ứng dụng. Còn phải phát hành trên domain HTTPS chính thức và điền URL vào Play Console.
 - [ ] Soạn dự thảo Privacy Policy, điều khoản và bảng kiểm kê dữ liệu phục vụ Data Safety, bao gồm SDK bên thứ ba.
+
+**Bằng chứng khởi động bước 5 (2026-09-24):** migration `20260924090000_account_deletion_request_safety.sql` áp thành công trên Supabase local; 10 file pgTAP / 180 assertions đạt. `npm run validate` đạt 23 file / 101 unit tests và web export 15 route. Browser journey đạt toàn bộ luồng hiện có và xác minh trang `/account-deletion` công khai tải được, nhận diện Loan và có đường đăng nhập. Tài liệu hành vi và phần phụ thuộc còn mở nằm tại `docs/ACCOUNT_DELETION.md`.
 
 **Đầu ra:** luồng xóa có kiểm thử, trang yêu cầu xóa và bộ dự thảo chính sách khớp hành vi ứng dụng.
 

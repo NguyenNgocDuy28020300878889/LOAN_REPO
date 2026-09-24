@@ -9,7 +9,7 @@ import {
   updateMyLocale,
   updateNotificationPreferences,
 } from '@/features/preferences/api';
-import { requestAccountDeletion, signOut } from '@/lib/auth';
+import { signOut } from '@/lib/auth';
 import { useAuthStore } from '@/stores/auth-store';
 import { usePushDevice } from '@/features/notifications/use-push-device';
 import { syncPushDevice } from '@/features/notifications/device';
@@ -61,11 +61,6 @@ export default function SettingsScreen() {
     void i18n.changeLanguage(locale);
     if (session) localeUpdate.mutate(locale);
   };
-  const deletion = useMutation({
-    mutationFn: requestAccountDeletion,
-    onSuccess: () => Alert.alert(t('appName'), t('settings.deletionRequested')),
-    onError: () => Alert.alert(t('appName'), t('auth.unavailable')),
-  });
   return (
     <Screen>
       <PageHeader back={false} title={t('settings.title')} subtitle={t('ui.settingsSubtitle')} />
@@ -193,17 +188,7 @@ export default function SettingsScreen() {
             <Button
               kind="quiet"
               label={t('settings.deleteAccount')}
-              disabled={deletion.isPending}
-              onPress={() =>
-                Alert.alert(t('settings.deleteAccount'), t('settings.deleteAccountWarning'), [
-                  { text: t('loan.cancel'), style: 'cancel' },
-                  {
-                    text: t('settings.deleteAccount'),
-                    style: 'destructive',
-                    onPress: () => deletion.mutate(),
-                  },
-                ])
-              }
+              onPress={() => router.push('/account-deletion' as never)}
             />
           </Card>
         </>

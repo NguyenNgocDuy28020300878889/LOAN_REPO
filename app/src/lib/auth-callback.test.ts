@@ -19,6 +19,7 @@ describe('auth callback validation', () => {
     }
   });
   it('allows only an internal invitation return path', () => {
+    expect(safeReturnPath('/account-deletion')).toBe('/account-deletion');
     expect(safeReturnPath(`/invite/${'a'.repeat(64)}`)).toBe(`/invite/${'a'.repeat(64)}`);
     const pending = '/pending-invite/94000000-0000-4000-8000-000000000001';
     expect(safeReturnPath(pending)).toBe(pending);
