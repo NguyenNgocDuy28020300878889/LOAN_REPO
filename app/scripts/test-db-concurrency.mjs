@@ -42,6 +42,8 @@ function sql(statement, allowFailure = false) {
 }
 const a = randomUUID();
 const b = randomUUID();
+const deleting = randomUUID();
+const deletingSession = randomUUID();
 const loans = [];
 const asUser = (user, statement) =>
   `begin; set local role authenticated; set local request.jwt.claim.sub='${user}'; ${statement}; commit;`;
@@ -140,6 +142,72 @@ async function race(loan, commands) {
     await Promise.allSettled(running);
   }
 }
+async function accountRace(user, commands) {
+  const gate = spawn(
+    'docker',
+    [
+      'exec',
+      '-i',
+      'supabase_db_loan-local',
+      'psql',
+      '-X',
+      '-qAt',
+      '-U',
+      'postgres',
+      '-d',
+      'postgres',
+      '-v',
+      'ON_ERROR_STOP=1',
+    ],
+    { windowsHide: true },
+  );
+  let signal = '';
+  let stderr = '';
+  const ready = new Promise((resolve, reject) => {
+    gate.stdout.on('data', (data) => {
+      signal += data;
+      if (signal.includes('LOCKED')) resolve();
+    });
+    gate.stderr.on('data', (data) => {
+      stderr += data;
+    });
+    gate.on('error', reject);
+    gate.on('close', (code) => {
+      if (!signal.includes('LOCKED')) reject(new Error(stderr || `gate closed ${code}`));
+    });
+  });
+  const closed = new Promise((resolve) => gate.on('close', resolve));
+  gate.stdin.write(
+    `begin; set local idle_in_transaction_session_timeout='15s'; select private.lock_accounts(array['${user}'::uuid]); select 'LOCKED';\n`,
+  );
+  const running = [];
+  try {
+    await ready;
+    const tag = `account_deletion_race_${randomUUID().replaceAll('-', '')}`;
+    for (const command of commands)
+      running.push(sql(`set application_name='${tag}'; ${command}`, true));
+    const deadline = Date.now() + 8000;
+    let blocked = 0;
+    while (Date.now() < deadline) {
+      blocked = Number(
+        (
+          await sql(
+            `select count(*) from pg_stat_activity where application_name='${tag}' and wait_event_type='Lock'`,
+          )
+        ).output,
+      );
+      if (blocked === commands.length) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.equal(blocked, commands.length, 'account commands must contend for the deletion lock');
+    gate.stdin.end('commit;\n');
+    return await Promise.all(running);
+  } finally {
+    if (!gate.stdin.writableEnded) gate.stdin.end('rollback;\n');
+    await closed;
+    await Promise.allSettled(running);
+  }
+}
 async function state(id) {
   return JSON.parse(
     (
@@ -217,6 +285,42 @@ try {
   );
   assert.equal(Number(membership.output), joined ? 1 : 0);
   console.log('PASS join versus revoke: one winner, membership consistent, no deadlock');
+
+  await sql(
+    `insert into auth.users(id,email) values ('${deleting}','${deleting}@example.invalid');
+     insert into auth.sessions(id,user_id,created_at) values ('${deletingSession}','${deleting}',now())`,
+  );
+  await sql(
+    `begin; set local role authenticated;
+     set local request.jwt.claims='{"sub":"${deleting}","session_id":"${deletingSession}"}';
+     select public.request_account_deletion(); commit;`,
+  );
+  const deletionRace = await accountRace(deleting, [
+    `select public.claim_account_deletion('${deleting}')`,
+    asUser(
+      deleting,
+      `select public.create_loan('LENDER',1000,'VND','2026-09-01','2026-10-01',null,null,'${randomUUID()}')`,
+    ),
+  ]);
+  assert.equal(deletionRace.filter((result) => result.code === 0).length, 1);
+  const deletionFailure = deletionRace.find((result) => result.code !== 0).error;
+  assert.match(deletionFailure, /ACCOUNT_DELETION_BLOCKED|ACCOUNT_DELETION_IN_PROGRESS/);
+  const createdDuringRace = deletionRace.find(
+    (result) => result.code === 0 && result.output.includes('loan_id'),
+  );
+  if (createdDuringRace) loans.push(JSON.parse(createdDuringRace.output).loan_id);
+  const deletionState = await sql(
+    `select jsonb_build_object(
+       'request_status',(select status from public.account_deletion_requests where user_id='${deleting}'),
+       'blocking_loans',(select count(*) from public.loans where created_by='${deleting}' and status in ('DRAFT','PENDING','ACTIVE'))
+     )`,
+  );
+  const raced = JSON.parse(deletionState.output);
+  assert.ok(
+    (raced.request_status === 'PROCESSING' && raced.blocking_loans === 0) ||
+      (raced.request_status === 'PENDING' && raced.blocking_loans === 1),
+  );
+  console.log('PASS deletion versus new loan: one winner, no obligation created after claim');
 } finally {
   // Every predicate uses random fixture IDs created by this process.
   if (loans.length) {
@@ -225,5 +329,8 @@ try {
       `begin; delete from public.loan_events where loan_id in (${ids}); delete from public.repayments where loan_id in (${ids}); delete from public.loan_invites where loan_id in (${ids}); delete from public.loan_members where loan_id in (${ids}); delete from public.loans where id in (${ids}); commit;`,
     );
   }
-  await sql(`delete from auth.users where id in ('${a}','${b}')`);
+  await sql(
+    `delete from private.account_deletion_audit where former_user_id='${deleting}';
+     delete from auth.users where id in ('${a}','${b}','${deleting}')`,
+  );
 }

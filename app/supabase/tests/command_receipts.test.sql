@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,email) values
@@ -29,12 +30,12 @@ select is((select count(*) from public.loan_events where entity_id=(select (resu
 select lives_ok($$select public.confirm_repayment((select (result->>'repayment_id')::uuid from commands where name='full'),'82000000-0000-4000-8000-000000000005')$$,'Confirmation retry returns its receipt after settlement');
 select is((select count(*) from public.loan_events where entity_id=(select (result->>'repayment_id')::uuid from commands where name='full') and event_type='REPAYMENT_CONFIRMED'),1::bigint,'No duplicate confirm event');
 select throws_ok($$select public.confirm_repayment((select (result->>'repayment_id')::uuid from commands where name='partial'),'82000000-0000-4000-8000-000000000006')$$,'P0001','REPAYMENT_NOT_PENDING','Cancelled proposal cannot be confirmed after settlement');
-reset role;
+set local role postgres;
 update public.loan_members set user_id=null where user_id='81000000-0000-4000-8000-000000000001';
 set local role authenticated;
 set local request.jwt.claim.sub='81000000-0000-4000-8000-000000000001';
 select throws_ok($$select public.submit_repayment((select (result->>'loan_id')::uuid from commands where name='loan'),100,'2026-09-02',null,null,'82000000-0000-4000-8000-000000000003')$$,'42501',null,'Revoked member cannot retrieve cached command response');
-reset role;
+set local role postgres;
 select ok(not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('create_loan','accept_loan_invite','decline_loan_invite','submit_repayment','confirm_repayment','get_my_loans','get_loan_room','get_loan_repayments','get_loan_invite_preview') and has_function_privilege('anon',p.oid,'execute')),'Anonymous role cannot execute authenticated application RPCs');
 select ok(not has_function_privilege('authenticated','private.begin_idempotent_command(text,uuid,jsonb)','execute'),'Authenticated caller cannot invoke receipt helper directly');
 select * from finish();

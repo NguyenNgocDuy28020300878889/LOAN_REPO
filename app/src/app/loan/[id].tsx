@@ -8,6 +8,7 @@ import { accountKey } from '@/lib/account-boundary';
 import { Alert } from '@/lib/alert';
 import { shareInviteLink } from '@/lib/share-invite';
 import { createInviteLink } from '@/features/loans/invite-link';
+import { copyToClipboard } from '@/lib/clipboard';
 import {
   decideRepayment,
   getLoanRepayments,
@@ -99,10 +100,13 @@ export default function LoanRoomScreen() {
         manageLoanInvite(id, action, key),
       );
       let shareFailed = false;
+      let inviteUrl = '';
       if (result.invite_token) {
+        inviteUrl = createInviteLink(result.invite_token);
+        await copyToClipboard(inviteUrl);
         try {
           await shareInviteLink(
-            createInviteLink(result.invite_token),
+            inviteUrl,
             t('loan.shareInvite'),
             t('loan.inviteShareInstructions'),
           );
@@ -111,16 +115,26 @@ export default function LoanRoomScreen() {
         }
       }
       command.clearCompleted();
-      return { ...result, shareFailed };
+      return { ...result, inviteUrl, shareFailed };
     },
     onSuccess: (result) => {
       void queryClient.invalidateQueries({
         queryKey: accountKey(session?.user.id, 'loan-room', id),
       });
-      if (result.action === 'revoke') Alert.alert(t('appName'), t('loan.inviteRevoked'));
-      else if (!result.invite_token) Alert.alert(t('appName'), t('loan.invalidInvite'));
-      else if (result.shareFailed) Alert.alert(t('appName'), t('loan.inviteShareFailed'));
-      else Alert.alert(t('loan.inviteReplaced'), t('loan.inviteReplacedHelp'));
+      if (result.action === 'revoke') {
+        Alert.alert(t('appName'), t('loan.inviteRevoked'));
+      } else if (!result.invite_token) {
+        Alert.alert(t('appName'), t('loan.invalidInvite'));
+      } else {
+        const messageParts = [t('loan.inviteReplacedHelp'), `\n\n${t('loan.copyInviteSuccess')}`];
+        if (result.inviteUrl) {
+          messageParts.push(`\n\n${result.inviteUrl}`);
+        }
+        if (result.shareFailed) {
+          messageParts.push(`\n\n${t('loan.inviteShareFailed')}`);
+        }
+        Alert.alert(t('loan.inviteReplaced'), messageParts.join(''));
+      }
     },
     onError: () => Alert.alert(t('appName'), t('loan.somethingWentWrong')),
   });
@@ -367,8 +381,15 @@ export default function LoanRoomScreen() {
               </Notice>
             )}
             {loan.status === 'PENDING' && (
-              <Card>
+              <Card style={{ gap: 12 }}>
+                <Section>{t('loan.sentInvitesTitle')}</Section>
                 <Notice tone="warning">{t('loan.bearerInviteWarning')}</Notice>
+                <Button
+                  icon="forward"
+                  disabled={invite.isPending}
+                  label={t('loan.copyInviteLink')}
+                  onPress={() => invite.mutate('rotate')}
+                />
                 <Button
                   kind="secondary"
                   icon="plus"

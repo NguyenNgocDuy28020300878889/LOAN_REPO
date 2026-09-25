@@ -1,6 +1,7 @@
 -- Synthetic users only. All fixtures and mutations roll back after this suite.
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path = public, extensions;
 select no_plan();
 
@@ -32,7 +33,7 @@ select is((select count(*) from public.loans), 0::bigint, 'Outsider cannot read 
 select is((select count(*) from public.repayments), 0::bigint, 'Outsider cannot read repayments');
 select throws_ok($$select public.get_loan_room('20000000-0000-4000-8000-000000000001')$$, '42501', null, 'Outsider cannot read through definer RPC');
 select throws_ok($$select public.cancel_repayment('30000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000001')$$, '42501', null, 'SEC-01: outsider cannot cancel a NULL-creator repayment');
-reset role;
+set local role postgres;
 select is((select status::text from public.repayments where id = '30000000-0000-4000-8000-000000000002'), 'PENDING', 'Denied cancellation leaves repayment untouched');
 select is((select count(*) from public.loan_events where loan_id = '20000000-0000-4000-8000-000000000002'), 0::bigint, 'Denied cancellation creates no audit event');
 
@@ -57,7 +58,7 @@ select is((public.get_loan_room('20000000-0000-4000-8000-000000000001')->>'balan
 select lives_ok($$select public.dispute_repayment('30000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000004')$$, 'Retry dispute returns previous result');
 select is((select count(*) from public.loan_events where entity_id = '30000000-0000-4000-8000-000000000001'), 1::bigint, 'Dispute retry creates exactly one event');
 
-reset role;
+set local role postgres;
 select ok(not has_function_privilege('anon', 'public.cancel_repayment(uuid,uuid)', 'execute'), 'Anonymous callers have no cancel EXECUTE grant');
 select ok(not has_function_privilege('anon', 'public.dispute_repayment(uuid,uuid)', 'execute'), 'Anonymous callers have no dispute EXECUTE grant');
 select * from finish();

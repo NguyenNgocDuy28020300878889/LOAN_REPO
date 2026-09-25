@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path = public, extensions;
 select no_plan();
 
@@ -89,7 +90,7 @@ with removed as (delete from public.loans where id='94000000-0000-4000-8000-0000
 select is((select count(*) from removed), 0::bigint, 'RLS blocks direct financial DELETE');
 select is((select count(*) from public.idempotency_keys), 0::bigint, 'Raw command receipts stay hidden even if SELECT is granted');
 select is((select count(*) from public.loan_invites), 0::bigint, 'Invitation table stays hidden even if SELECT is granted');
-reset role;
+set local role postgres;
 
 update public.loan_members set updated_at='2000-01-01' where loan_id='94000000-0000-4000-8000-000000000001';
 select ok((select updated_at > '2000-01-01'::timestamptz from public.loan_members where loan_id='94000000-0000-4000-8000-000000000001'), 'Trigger prevents forged update timestamp');

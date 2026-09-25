@@ -135,6 +135,9 @@ export const vi = {
         'Thiết bị đã đăng ký nhận thông báo. Trạng thái này không xác nhận từng thông báo đã được nhận.',
     },
     deleteAccount: 'Xóa tài khoản',
+    privacyPolicy: 'Chính sách quyền riêng tư',
+    terms: 'Điều khoản dịch vụ',
+    legal: 'Pháp lý & Chính sách',
     deleteAccountWarning:
       'Thao tác này yêu cầu xóa tài khoản và hồ sơ cá nhân. Lịch sử tài chính chung được giữ lại nhưng không còn hồ sơ cá nhân của bạn.',
     deletionRequested:
@@ -151,6 +154,10 @@ export const vi = {
       'Lịch sử khoản vay chung hiện được dự kiến giữ ở dạng ẩn danh. Thời hạn lưu và cách xử lý khoản vay đang hoạt động vẫn đang được hoàn thiện trước khi dịch vụ xóa được bật.',
     processingPending:
       'Ứng dụng hiện ghi nhận và hiển thị trạng thái yêu cầu. Việc xóa thực tế chưa được bật trên môi trường phát hành.',
+    activeLoansBlock:
+      'Mọi khoản vay đang hoạt động và giao dịch trả nợ đang chờ phải được tất toán trước khi bạn có thể xóa tài khoản.',
+    blocked:
+      'Bạn chưa thể xóa tài khoản. Bạn còn {{loans}} khoản vay đang hoạt động và {{repayments}} giao dịch trả nợ đang chờ. Vui lòng tất toán hoặc hoàn tất trước.',
     signInRequired: 'Đăng nhập đúng tài khoản để gửi hoặc xem trạng thái yêu cầu xóa.',
     statusUnavailable: 'Không thể tải trạng thái yêu cầu. Hãy kiểm tra kết nối và thử lại.',
     request: 'YÊU CẦU CỦA BẠN',
@@ -160,6 +167,11 @@ export const vi = {
     freshSignInRequired: 'Phiên hiện tại đã cũ. Hãy đăng nhập lại để xác nhận danh tính.',
     signInAgain: 'Đăng nhập lại để tiếp tục',
     submit: 'Gửi yêu cầu xóa tài khoản',
+    retry: 'Thử lại xóa tài khoản',
+    finalWarning:
+      'Thao tác này là vĩnh viễn và không thể hoàn tác. Mọi dữ liệu cá nhân và quyền truy cập tài khoản sẽ bị xóa ngay lập tức. Bạn có chắc chắn muốn tiếp tục?',
+    confirmDelete: 'Xác nhận xóa tài khoản',
+    completed: 'Tài khoản của bạn đã được xóa thành công.',
     requestRecorded: 'Yêu cầu đã được ghi nhận',
     status: {
       PENDING: 'Yêu cầu đang chờ xử lý.',
@@ -216,6 +228,13 @@ export const vi = {
     confirmLoan: 'Xem lại khoản vay trước khi gửi',
     role: 'Vai trò của tôi trong khoản vay',
     shareInvite: 'Chia sẻ lời mời',
+    copyInviteLink: 'Sao chép liên kết mời',
+    copyInviteSuccess:
+      'Đã sao chép liên kết mời vào bộ nhớ tạm! Bạn có thể dán gửi qua Zalo, Messenger hoặc SMS.',
+    linkCopied: 'Đã sao chép liên kết vào bộ nhớ tạm!',
+    getInviteLink: 'Lấy lại liên kết mời',
+    sentInvitesTitle: 'Lịch sử lời mời đã gửi',
+    pendingFilter: 'Chờ phản hồi',
     inviteShared: 'Liên kết mời đã sẵn sàng để chia sẻ.',
     inviteReplaced: 'Đã tạo lời mời mới',
     inviteReplacedHelp:
@@ -240,13 +259,24 @@ export const vi = {
     declineInvite: 'Từ chối lời mời',
     inviteAccepted: 'Đã chấp nhận lời mời',
     inviteDeclined: 'Đã từ chối lời mời',
+    recipientSection: 'Người nhận & Cách gửi lời mời',
+    directInviteBadge: '⚡ Tự động gửi vào App',
+    linkInviteBadge: '🔗 Gửi bằng liên kết',
     recipientEmail: 'Email người nhận (không bắt buộc)',
     recipientEmailHelp:
       'Nếu người nhận đã dùng Loan, họ sẽ nhận được thông báo trực tiếp trong ứng dụng.',
+    recipientEmailAutoHint:
+      '✓ Lời mời sẽ tự động xuất hiện trên màn hình chính của người nhận khi họ đăng nhập bằng email này.',
+    recipientEmailManualHint:
+      'Để trống nếu không rõ email. Ứng dụng sẽ tạo liên kết để bạn gửi thủ công qua Zalo/Messenger/SMS.',
     invalidRecipientEmail: 'Email người nhận không hợp lệ.',
     cannotInviteSelf: 'Bạn không thể gửi lời mời cho chính email của mình.',
+    inviteSectionTitle: 'Lời mời & Liên kết tham gia',
+    noPendingInvitesHint:
+      'Chưa có lời mời tự động nào. Nếu bạn nhận được link mời qua tin nhắn, hãy mở bằng liên kết.',
     pendingInvitesTitle: 'Lời mời đang chờ bạn phản hồi',
     pendingInvitesBadge: '{{count}} lời mời mới',
+    tapToReview: 'Nhấn để xem chi tiết',
     invitedBy: 'Người mời: {{name}}',
     invitedAt: 'Gửi lúc: {{date}}',
     viewPendingInvite: 'Xem chi tiết lời mời',

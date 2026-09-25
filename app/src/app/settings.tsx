@@ -185,14 +185,29 @@ export default function SettingsScreen() {
               loading={logout.isPending}
               onPress={() => logout.mutate()}
             />
-            <Button
-              kind="quiet"
-              label={t('settings.deleteAccount')}
-              onPress={() => router.push('/account-deletion' as never)}
-            />
           </Card>
         </>
       )}
+      <Card>
+        <Section>{t('settings.legal')}</Section>
+        <Button
+          kind="quiet"
+          icon="document"
+          label={t('settings.privacyPolicy')}
+          onPress={() => router.push('/privacy-policy' as never)}
+        />
+        <Button
+          kind="quiet"
+          icon="document"
+          label={t('settings.terms')}
+          onPress={() => router.push('/terms' as never)}
+        />
+        <Button
+          kind="quiet"
+          label={t('settings.deleteAccount')}
+          onPress={() => router.push('/account-deletion' as never)}
+        />
+      </Card>
       {localeUpdate.isError && <Notice tone="danger">{t('loan.somethingWentWrong')}</Notice>}
     </Screen>
   );

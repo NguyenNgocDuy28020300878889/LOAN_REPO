@@ -1,5 +1,8 @@
+import { copyToClipboard } from './clipboard';
+
 export async function shareInviteLink(url: string, title: string, instructions = '') {
   const text = instructions ? `${instructions}\n\n${url}` : url;
+  await copyToClipboard(url);
   if (navigator.share) {
     try {
       await navigator.share({ title, text });

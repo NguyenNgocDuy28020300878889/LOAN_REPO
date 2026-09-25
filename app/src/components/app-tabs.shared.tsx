@@ -43,6 +43,8 @@ export default function AppTabs() {
       <Tabs.Screen name="create" options={{ href: null }} />
       <Tabs.Screen name="open-invite" options={{ href: null }} />
       <Tabs.Screen name="account-deletion" options={{ href: null }} />
+      <Tabs.Screen name="privacy-policy" options={{ href: null }} />
+      <Tabs.Screen name="terms" options={{ href: null }} />
       <Tabs.Screen name="explore" options={{ href: null }} />
       <Tabs.Screen name="invite/[token]" options={{ href: null }} />
       <Tabs.Screen name="pending-invite/[id]" options={{ href: null }} />

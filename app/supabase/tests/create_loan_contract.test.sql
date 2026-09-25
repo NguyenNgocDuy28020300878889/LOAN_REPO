@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path = public, extensions;
 select no_plan();
 
@@ -68,7 +69,7 @@ select is(
 
 -- Simulate a completed receipt written by migration 20260921140000 before
 -- recipient email became part of the fingerprint.
-reset role;
+set local role postgres;
 update public.idempotency_keys
 set request_hash = encode(
   extensions.digest(
@@ -195,6 +196,6 @@ select is(
   'Invitation response retry returns its receipt'
 );
 
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

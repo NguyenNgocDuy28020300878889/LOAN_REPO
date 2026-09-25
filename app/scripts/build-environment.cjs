@@ -95,8 +95,14 @@ function validateBuildEnvironment(values, profile = values.EAS_BUILD_PROFILE) {
   const appLinkOrigin = values.EXPO_PUBLIC_APP_LINK_ORIGIN ?? '';
   if (appLinkOrigin && !validPublicOrigin(appLinkOrigin)) {
     errors.push('EXPO_PUBLIC_APP_LINK_ORIGIN must be a clean public HTTPS origin.');
-  } else if (appEnv === 'production' && !appLinkOrigin) {
-    errors.push('EXPO_PUBLIC_APP_LINK_ORIGIN is required for production App Links.');
+  } else if (
+    appEnv === 'production' &&
+    !appLinkOrigin &&
+    values.ALLOW_CUSTOM_SCHEME_ONLY_DEEP_LINKING !== 'true'
+  ) {
+    errors.push(
+      'EXPO_PUBLIC_APP_LINK_ORIGIN is required for production App Links, or set ALLOW_CUSTOM_SCHEME_ONLY_DEEP_LINKING=true to use custom scheme (loan://) only.',
+    );
   }
   if (
     appEnv !== 'development' &&

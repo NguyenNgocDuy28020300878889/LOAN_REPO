@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path = public, extensions;
 select no_plan();
 
@@ -41,7 +42,7 @@ select is(
   1,
   'Designated recipient sees a live invitation'
 );
-reset role;
+set local role postgres;
 select is(
   (select count(*) from private.push_deliveries where kind = 'INVITE_RECEIVED' and status = 'pending'),
   1::bigint,
@@ -63,7 +64,7 @@ select isnt(
   null::text,
   'Owner can replace a link bound to a designated recipient'
 );
-reset role;
+set local role postgres;
 select is(
   (select count(*) from private.push_deliveries where kind = 'INVITE_RECEIVED' and status = 'pending'),
   1::bigint,
@@ -80,7 +81,7 @@ select lives_ok(
   ),
   'Owner can revoke a designated invitation link'
 );
-reset role;
+set local role postgres;
 select is(
   (select count(*) from private.push_deliveries where kind = 'INVITE_RECEIVED' and status = 'pending'),
   0::bigint,
@@ -131,7 +132,7 @@ select is(
   'A replacement restores the designated invitation'
 );
 
-reset role;
+set local role postgres;
 update public.loan_invites
 set created_at = now() - interval '2 minutes',
     expires_at = now() - interval '1 minute'
@@ -193,6 +194,6 @@ select is(
   'Declined invitation no longer appears'
 );
 
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

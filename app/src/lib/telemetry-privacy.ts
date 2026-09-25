@@ -14,6 +14,11 @@ const safeErrors = new Set([
   'SESSION_STORAGE_LIMIT',
   'PASSWORD_RECOVERY_REQUIRED',
   'COMMAND_STORAGE_INVALID',
+  'ACCOUNT_DELETION_BLOCKED',
+  'REAUTHENTICATION_REQUIRED',
+  'ACCOUNT_DELETION_FAILED',
+  'DELETION_ALREADY_PROCESSING',
+  'DELETION_REQUEST_REQUIRED',
 ]);
 // Financial text, invite URLs, tokens and email addresses may appear anywhere
 // in third-party errors. Build an allowlisted event; do not recursively redact

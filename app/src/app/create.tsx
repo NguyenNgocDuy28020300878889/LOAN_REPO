@@ -11,6 +11,7 @@ import { DateField } from '@/components/date-field';
 import { useAuthStore } from '@/stores/auth-store';
 import { shareInviteLink } from '@/lib/share-invite';
 import { createInviteLink } from '@/features/loans/invite-link';
+import { copyToClipboard } from '@/lib/clipboard';
 import { Alert } from '@/lib/alert';
 import {
   base,
@@ -92,10 +93,13 @@ export default function CreateScreen() {
           createLoan({ ...payload, idempotencyKey: key }),
         );
         let shareFailed = false;
+        let inviteUrl = '';
         if (result.invite_token) {
+          inviteUrl = createInviteLink(result.invite_token);
+          await copyToClipboard(inviteUrl);
           try {
             await shareInviteLink(
-              createInviteLink(result.invite_token),
+              inviteUrl,
               t('loan.shareInvite'),
               t('loan.inviteShareInstructions'),
             );
@@ -103,25 +107,30 @@ export default function CreateScreen() {
             shareFailed = true;
           }
         }
-        const successMessage = trimmedEmail
-          ? `${t('loan.createdHelp')}\n\n${t('loan.inAppInviteNotice')}`
-          : t('loan.createdHelp');
-        Alert.alert(
-          t('loan.created'),
-          shareFailed ? `${successMessage}\n\n${t('loan.inviteShareFailed')}` : successMessage,
-          [
-            {
-              text: t('loan.confirm'),
-              onPress: () => {
-                command.clearCompleted();
-                setAmount('');
-                setPurpose('');
-                setRecipientEmail('');
-                router.replace(`/loan/${result.loan_id}`);
-              },
+        const noticeParts: string[] = [];
+        if (trimmedEmail) {
+          noticeParts.push(`${t('loan.createdHelp')}\n\n${t('loan.inAppInviteNotice')}`);
+        } else {
+          noticeParts.push(t('loan.createdHelp'));
+        }
+        if (inviteUrl) {
+          noticeParts.push(`\n${t('loan.copyInviteSuccess')}\n\n${inviteUrl}`);
+        }
+        if (shareFailed) {
+          noticeParts.push(`\n${t('loan.inviteShareFailed')}`);
+        }
+        Alert.alert(t('loan.created'), noticeParts.join('\n'), [
+          {
+            text: t('loan.confirm'),
+            onPress: () => {
+              command.clearCompleted();
+              setAmount('');
+              setPurpose('');
+              setRecipientEmail('');
+              router.replace(`/loan/${result.loan_id}`);
             },
-          ],
-        );
+          },
+        ]);
       } catch {
         Alert.alert(t('appName'), t('loan.somethingWentWrong'));
       } finally {
@@ -214,6 +223,38 @@ export default function CreateScreen() {
           onChangeText={setPurpose}
           maxLength={280}
         />
+      </Card>
+      <Card>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 12,
+            flexWrap: 'wrap',
+          }}
+        >
+          <Section>{t('loan.recipientSection')}</Section>
+          <View
+            style={{
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 8,
+              backgroundColor: recipientEmail.trim() ? p.soft : p.surface,
+              borderWidth: 1,
+              borderColor: recipientEmail.trim() ? p.primary : p.border,
+            }}
+          >
+            <Text
+              style={[
+                base.caption,
+                { color: recipientEmail.trim() ? p.primary : p.muted, fontWeight: '700' },
+              ]}
+            >
+              {recipientEmail.trim() ? t('loan.directInviteBadge') : t('loan.linkInviteBadge')}
+            </Text>
+          </View>
+        </View>
         <Field
           label={t('loan.recipientEmail')}
           value={recipientEmail}
@@ -223,7 +264,11 @@ export default function CreateScreen() {
           autoCapitalize="none"
           autoCorrect={false}
           maxLength={255}
-          hint={t('loan.recipientEmailHelp')}
+          hint={
+            recipientEmail.trim()
+              ? t('loan.recipientEmailAutoHint')
+              : t('loan.recipientEmailManualHint')
+          }
         />
       </Card>
       <Card>

@@ -2,8 +2,14 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const cloud = JSON.parse(readFileSync('.local/cloud-public.json', 'utf8'));
-const targets = { development: 'rwfmqthrpbkizcofullh', staging: 'kircmwdkcdcozckrwfid' };
+const targets = {
+  development: 'rwfmqthrpbkizcofullh',
+  staging: 'kircmwdkcdcozckrwfid',
+  production: 'yyqsddjtzudvbrmcksll',
+};
 assert.notEqual(cloud.development.url, cloud.staging.url);
+assert.notEqual(cloud.production.url, cloud.staging.url);
+assert.notEqual(cloud.production.url, cloud.development.url);
 for (const [environment, ref] of Object.entries(targets)) {
   const config = cloud[environment];
   assert.equal(config.url, `https://${ref}.supabase.co`);

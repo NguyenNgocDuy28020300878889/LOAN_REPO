@@ -137,6 +137,9 @@ export const en = {
         'This device is registered for notifications. This does not confirm delivery of individual notifications.',
     },
     deleteAccount: 'Delete account',
+    privacyPolicy: 'Privacy Policy',
+    terms: 'Terms of Service',
+    legal: 'Legal & Policies',
     deleteAccountWarning:
       'This requests deletion of your account and personal profile. Shared financial history is preserved without your personal profile.',
     deletionRequested:
@@ -154,6 +157,10 @@ export const en = {
       'Shared loan history is currently planned to remain in anonymous form. Its retention period and the treatment of active loans must be finalized before deletion processing is enabled.',
     processingPending:
       'The app currently records and displays request status. Actual deletion is not enabled in the release environment yet.',
+    activeLoansBlock:
+      'All active loans and pending repayments must be settled before you can delete your account.',
+    blocked:
+      'You cannot delete your account yet. You have {{loans}} active loan(s) and {{repayments}} pending repayment(s). Please settle or close them first.',
     signInRequired: 'Sign in to the correct account to submit or view its deletion request.',
     statusUnavailable:
       'The request status could not be loaded. Check your connection and try again.',
@@ -164,6 +171,11 @@ export const en = {
     freshSignInRequired: 'This session is too old. Sign in again to confirm your identity.',
     signInAgain: 'Sign in again to continue',
     submit: 'Request account deletion',
+    retry: 'Retry account deletion',
+    finalWarning:
+      'This action is permanent and cannot be undone. All your personal data and account access will be removed immediately. Do you want to proceed?',
+    confirmDelete: 'Permanently delete account',
+    completed: 'Your account has been deleted successfully.',
     requestRecorded: 'Request recorded',
     status: {
       PENDING: 'Your request is waiting to be processed.',
@@ -221,6 +233,13 @@ export const en = {
     confirmLoan: 'Review loan before sending',
     role: 'My role in this loan',
     shareInvite: 'Share invite',
+    copyInviteLink: 'Copy invite link',
+    copyInviteSuccess:
+      'Invite link copied to clipboard! You can paste and send via chat or messaging apps.',
+    linkCopied: 'Link copied to clipboard!',
+    getInviteLink: 'Get invite link',
+    sentInvitesTitle: 'Sent invites history',
+    pendingFilter: 'Pending',
     inviteShared: 'Your invite link is ready to share.',
     inviteReplaced: 'New invitation created',
     inviteReplacedHelp:
@@ -245,13 +264,24 @@ export const en = {
     declineInvite: 'Decline invitation',
     inviteAccepted: 'Invitation accepted',
     inviteDeclined: 'Invitation declined',
+    recipientSection: 'Recipient & Invite Method',
+    directInviteBadge: '⚡ Direct in-app invite',
+    linkInviteBadge: '🔗 Link invite',
     recipientEmail: 'Recipient email (optional)',
     recipientEmailHelp:
       'If the recipient uses Loan, they will receive a notification directly in the app.',
+    recipientEmailAutoHint:
+      '✓ The invitation will automatically appear on the recipient’s home screen when they sign in with this email.',
+    recipientEmailManualHint:
+      'Leave empty if email is unknown. A link will be generated for you to share via chat or SMS.',
     invalidRecipientEmail: 'Please enter a valid recipient email.',
     cannotInviteSelf: 'You cannot invite your own email address.',
+    inviteSectionTitle: 'Invitations & Link Joining',
+    noPendingInvitesHint:
+      'No pending automatic invitations. If you received an invite link via chat, open it with link.',
     pendingInvitesTitle: 'Pending invitations for you',
     pendingInvitesBadge: '{{count}} new invitations',
+    tapToReview: 'Tap to review',
     invitedBy: 'Invited by: {{name}}',
     invitedAt: 'Sent on: {{date}}',
     viewPendingInvite: 'View invitation details',

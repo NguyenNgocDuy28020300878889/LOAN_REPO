@@ -28,7 +28,16 @@
     "production": {
       "node": "24.16.0",
       "environment": "production",
-      "env": { "EXPO_PUBLIC_APP_ENV": "production" },
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "EXPO_PUBLIC_APP_LINK_ORIGIN": "https://loan.duyhaohan.id.vn",
+        "EXPO_PUBLIC_SUPABASE_PRODUCTION_URL": "https://yyqsddjtzudvbrmcksll.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_PRODUCTION_PUBLISHABLE_KEY": "sb_publishable_UBseJtBV-wZZnFEnQCq3hw_GW2aDEYt",
+        "EXPO_EXPECTED_SUPABASE_PROJECT_REF": "yyqsddjtzudvbrmcksll",
+        "EXPO_PUBLIC_GOOGLE_AUTH_READY": "true",
+        "EXPO_PUBLIC_EMAIL_OTP_READY": "false",
+        "EXPO_PUBLIC_PUSH_READY": "false"
+      },
       "autoIncrement": true
     }
   }

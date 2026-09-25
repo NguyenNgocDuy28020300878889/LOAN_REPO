@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path = public, extensions;
 select no_plan();
 insert into auth.users (id, email) values
@@ -25,12 +26,12 @@ set local request.jwt.claim.sub = '71000000-0000-4000-8000-000000000001';
 insert into flow_results values ('second', public.create_loan('BORROWER', 2000, 'VND', '2026-09-01', '2026-10-01', null, null, '72000000-0000-4000-8000-000000000006'));
 set local request.jwt.claim.sub = '71000000-0000-4000-8000-000000000003';
 select lives_ok($$select public.decline_loan_invite((select result->>'invite_token' from flow_results where name='second'), '72000000-0000-4000-8000-000000000007')$$, 'Valid link holder can decline');
-reset role;
+set local role postgres;
 select is((select status::text from public.loans where id=(select (result->>'loan_id')::uuid from flow_results where name='second')), 'DECLINED', 'Decline persists');
 select ok(not has_function_privilege('anon','public.get_loan_invite_preview(text)','execute'), 'Anonymous callers cannot read financial preview');
 set local role anon;
 set local request.jwt.claim.sub = '';
 select throws_ok($$select public.get_loan_invite_preview(repeat('a',64))$$, '42501', null, 'Anonymous direct RPC is denied');
-reset role;
+set local role postgres;
 select * from finish();
 rollback;

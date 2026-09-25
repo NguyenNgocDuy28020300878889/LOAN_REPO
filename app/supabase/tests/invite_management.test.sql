@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,email) values
@@ -34,7 +35,7 @@ select lives_ok($$select public.accept_loan_invite((select result->>'invite_toke
 set local request.jwt.claim.sub='b1000000-0000-4000-8000-000000000001';
 select throws_ok($$select public.manage_loan_invite((select (result->>'loan_id')::uuid from commands where name='loan'),'rotate','b2000000-0000-4000-8000-000000000009')$$,'P0001','LOAN_NOT_PENDING','No new invitation after membership accepted');
 select is(public.manage_loan_invite((select (result->>'loan_id')::uuid from commands where name='loan'),'rotate','b2000000-0000-4000-8000-000000000007')->>'invite_token',null::text,'Used token is not returned from rotation receipt');
-reset role;
+set local role postgres;
 select ok(not has_function_privilege('anon','public.manage_loan_invite(uuid,text,uuid)','EXECUTE'),'Anonymous caller cannot manage invitations');
 select * from finish();
 rollback;

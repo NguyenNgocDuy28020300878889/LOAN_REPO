@@ -60,4 +60,13 @@ describe('telemetry data minimization', () => {
       'app:///index.android.bundle',
     );
   });
+  it('retains account deletion safety error codes', () => {
+    const result = privateErrorEvent({
+      type: undefined,
+      exception: {
+        values: [{ value: 'ACCOUNT_DELETION_BLOCKED' }],
+      },
+    });
+    expect(result.exception?.values?.[0].value).toBe('ACCOUNT_DELETION_BLOCKED');
+  });
 });

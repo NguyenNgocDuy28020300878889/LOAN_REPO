@@ -175,6 +175,17 @@ export async function signOut() {
   useAuthStore.getState().setSession(null);
 }
 
+async function clearDeletedAccountSession() {
+  await Promise.allSettled([
+    clearPushTray(),
+    getSupabaseClient().auth.signOut({ scope: 'local' }),
+    sessionStorage.removeItem(flowKey),
+  ]);
+  recovery = undefined;
+  lastExchange = undefined;
+  useAuthStore.getState().setSession(null);
+}
+
 export async function requestAccountDeletion() {
   const { data, error } = await runAccountRpc(() =>
     getSupabaseClient().rpc('request_account_deletion'),
@@ -190,10 +201,29 @@ export type AccountDeletionRequest = {
   status: 'PENDING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED' | 'FAILED';
 };
 
-export async function getAccountDeletionRequest() {
+export type AccountDeletionState = {
+  eligible: boolean;
+  blocking_loan_count: number;
+  blocking_repayment_count: number;
+  request: AccountDeletionRequest | null;
+};
+
+export async function getAccountDeletionState() {
   const { data, error } = await runAccountRpc(() =>
-    getSupabaseClient().rpc('get_my_account_deletion_request'),
+    getSupabaseClient().rpc('get_my_account_deletion_state'),
   );
   if (error) throw error;
-  return data as AccountDeletionRequest | null;
+  return data as AccountDeletionState;
+}
+
+export async function deleteAccount() {
+  await requestAccountDeletion();
+  const { data, error } = await runForCurrentAccount((session) =>
+    getSupabaseClient().functions.invoke('delete-account', {
+      headers: { Authorization: `Bearer ${session.access_token}` },
+      body: {},
+    }),
+  );
+  if (error || !data?.success) throw error ?? new Error('ACCOUNT_DELETION_FAILED');
+  await clearDeletedAccountSession();
 }

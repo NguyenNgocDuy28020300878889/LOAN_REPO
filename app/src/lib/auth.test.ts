@@ -8,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   clearPushTray: vi.fn(),
   setSession: vi.fn(),
   storage: new Map<string, string>(),
+  rpc: vi.fn(),
+  invoke: vi.fn(),
+  session: null as unknown,
+  sessionEpoch: 0,
 }));
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({
@@ -15,6 +19,15 @@ vi.mock('@/lib/supabase', () => ({
       signInWithOAuth: mocks.oauth,
       exchangeCodeForSession: mocks.exchange,
       signOut: mocks.signOut,
+    },
+    rpc: (name: string, args?: Record<string, unknown>) => {
+      const promise = Promise.resolve(mocks.rpc(name, args));
+      return Object.assign(promise, {
+        setHeader: vi.fn().mockReturnValue(promise),
+      });
+    },
+    functions: {
+      invoke: mocks.invoke,
     },
   }),
 }));
@@ -30,12 +43,20 @@ vi.mock('@/lib/session-storage', () => ({
   },
 }));
 vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: { getState: () => ({ setSession: mocks.setSession }) },
+  useAuthStore: {
+    getState: () => ({
+      session: mocks.session,
+      sessionEpoch: mocks.sessionEpoch,
+      setSession: mocks.setSession,
+    }),
+  },
 }));
 beforeEach(() => {
   vi.resetModules();
   vi.resetAllMocks();
   mocks.storage.clear();
+  mocks.session = null;
+  mocks.sessionEpoch = 0;
   mocks.oauth.mockResolvedValue({ data: { url: 'https://example.supabase.co/auth/v1/authorize' } });
   mocks.signOut.mockResolvedValue({ error: null });
   mocks.unregisterPushDevice.mockResolvedValue(undefined);
@@ -134,6 +155,65 @@ describe('sign-out account boundary', () => {
 
     await expect(signOut()).rejects.toThrow('network unavailable');
 
+    expect(mocks.setSession).not.toHaveBeenCalledWith(null);
+  });
+});
+
+describe('account deletion boundary', () => {
+  it('loads account deletion state for authenticated user', async () => {
+    const { getAccountDeletionState } = await import('./auth');
+    mocks.session = { access_token: 'valid-jwt', user: { id: 'u1' } };
+    mocks.rpc.mockReturnValueOnce({
+      data: {
+        eligible: true,
+        blocking_loan_count: 0,
+        blocking_repayment_count: 0,
+        request: null,
+      },
+      error: null,
+    });
+
+    const state = await getAccountDeletionState();
+    expect(state.eligible).toBe(true);
+    expect(mocks.rpc).toHaveBeenCalledWith('get_my_account_deletion_state', undefined);
+  });
+
+  it('completes account deletion and cleans up session on success', async () => {
+    const { deleteAccount } = await import('./auth');
+    mocks.session = { access_token: 'valid-jwt', user: { id: 'u1' } };
+    mocks.rpc.mockReturnValueOnce({
+      data: { id: 'req-1', status: 'PENDING' },
+      error: null,
+    });
+    mocks.invoke.mockResolvedValueOnce({
+      data: { success: true },
+      error: null,
+    });
+
+    await deleteAccount();
+
+    expect(mocks.rpc).toHaveBeenCalledWith('request_account_deletion', undefined);
+    expect(mocks.invoke).toHaveBeenCalledWith('delete-account', {
+      headers: { Authorization: 'Bearer valid-jwt' },
+      body: {},
+    });
+    expect(mocks.signOut).toHaveBeenCalledWith({ scope: 'local' });
+    expect(mocks.setSession).toHaveBeenCalledWith(null);
+  });
+
+  it('preserves the session if delete-account edge function fails', async () => {
+    const { deleteAccount } = await import('./auth');
+    mocks.session = { access_token: 'valid-jwt', user: { id: 'u1' } };
+    mocks.rpc.mockReturnValueOnce({
+      data: { id: 'req-1', status: 'PENDING' },
+      error: null,
+    });
+    mocks.invoke.mockResolvedValueOnce({
+      data: null,
+      error: new Error('ACCOUNT_DELETION_FAILED'),
+    });
+
+    await expect(deleteAccount()).rejects.toThrow('ACCOUNT_DELETION_FAILED');
     expect(mocks.setSession).not.toHaveBeenCalledWith(null);
   });
 });

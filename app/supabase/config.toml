@@ -423,3 +423,6 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
 [functions.push-worker]
 verify_jwt = false
+
+[functions.reconcile-account-deletions]
+verify_jwt = false

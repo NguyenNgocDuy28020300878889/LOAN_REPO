@@ -1,5 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
+set local role postgres;
 set local search_path=public,extensions;
 select no_plan();
 
@@ -29,7 +30,7 @@ select throws_ok($$select public.register_push_device('a4000000-0000-4000-8000-0
 set local request.jwt.claims='{"sub":"a1000000-0000-4000-8000-000000000002","session_id":"a2000000-0000-4000-8000-000000000002"}';
 select throws_ok($$select public.register_push_device('a4000000-0000-4000-8000-000000000001',repeat('b',64),'ExpoPushToken[hijack]','android','UTC','vi')$$,'42501','DEVICE_OWNERSHIP_REQUIRED','Cannot hijack another installation');
 select lives_ok($$select public.register_push_device('a4000000-0000-4000-8000-000000000002',repeat('b',64),'ExpoPushToken[fixtureB]','android','Asia/Ho_Chi_Minh','vi')$$,'Register borrower');
-reset role;
+set local role postgres;
 
 insert into public.loan_events(id,loan_id,event_type,actor_id) values
  ('a5000000-0000-4000-8000-000000000001','a3000000-0000-4000-8000-000000000001','LOAN_ACCEPTED','a1000000-0000-4000-8000-000000000002');
@@ -97,13 +98,13 @@ select ok(not (select enabled from private.push_devices where id='a4000000-0000-
 
 set local role authenticated;
 select public.unregister_push_device('a4000000-0000-4000-8000-000000000002',repeat('b',64));
-reset role;
+set local role postgres;
 select ok(not (select enabled from private.push_devices where id='a4000000-0000-4000-8000-000000000002'),'Logout disables device');
 select ok(not (select bool_or(private.push_delivery_valid(j,'2099-10-03 02:00:00Z')) from private.push_deliveries j where kind='DUE_TODAY'),'Logout invalidates old queued work');
 set local role authenticated;
 set local request.jwt.claims='{"sub":"a1000000-0000-4000-8000-000000000001","session_id":"a2000000-0000-4000-8000-000000000001"}';
 select public.register_push_device('a4000000-0000-4000-8000-000000000002',repeat('b',64),'ExpoPushToken[fixtureB]','android','Asia/Ho_Chi_Minh','vi');
-reset role;
+set local role postgres;
 select is((select user_id from private.push_devices where id='a4000000-0000-4000-8000-000000000002'),'a1000000-0000-4000-8000-000000000001'::uuid,'Same installation can bind to new account with its secret');
 select ok(not (select bool_or(private.push_delivery_valid(j,'2099-10-03 02:00:00Z')) from private.push_deliveries j where kind='DUE_TODAY'),'Account rebind cannot receive previous account work');
 

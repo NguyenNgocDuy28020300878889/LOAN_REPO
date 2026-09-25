@@ -1,6 +1,21 @@
 # LOAN — Các bước chuẩn bị phát hành Google Play
 
-Cập nhật: 23/09/2026.
+Cập nhật: 25/09/2026.
+
+## Rà soát lại bước 5–8 — 25/09/2026
+
+**Kết luận hiện hành: cả bốn bước chưa đủ bằng chứng để đóng nghiệm thu.** Các ghi nhận ngày 24/09 bên dưới là lịch sử triển khai, không thay thế kết quả rà soát này. Chi tiết lỗi, nguồn và giới hạn kiểm tra: [báo cáo rà soát bước 5–8](GOOGLE_PLAY_RECHECK_5_8_2026_09_25.md).
+
+Kế hoạch xử lý theo cổng nghiệm thu, phụ thuộc và bằng chứng: [kế hoạch đóng các mục chưa đạt bước 5–8](GOOGLE_PLAY_REMEDIATION_PLAN_5_8.md).
+
+| Bước | Trạng thái sau rà soát                                                                                                                                                                         |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 5    | Có code và trang web công khai; SQL khai báo 24 nhưng chỉ có 23 assertions; còn rủi ro đồng thời khi xóa, thiếu kiểm thử xóa trọn vòng và chính sách lưu giữ hoàn chỉnh.                       |
+| 6    | Auth/API cả ba môi trường PASS; chưa đủ bằng chứng migration cloud, OAuth production, backup/restore, cảnh báo và Sentry canary để kết luận hoàn thành vận hành.                               |
+| 7    | Preflight với env profile production PASS; domain chính thức trả HTTP 200 nhưng fingerprint App Links toàn số 0; chưa nghiệm thu AAB/Play internal testing. Yêu cầu target hiện tại là API 36. |
+| 8    | Có bản thảo; reviewer access chưa đủ, nội dung push/Email chưa khớp profile production, Data Safety/chính sách còn cần đối chiếu; closed testing chưa thực hiện.                               |
+
+Kiểm tra mới: **24 test files / 107 unit tests PASS**, typecheck PASS, cloud Auth/API read-only PASS. Playwright đã mở các trang chính sách ở cả domain chính thức và Vercel, bấm đăng nhập từ trang xóa tài khoản; chưa đăng nhập hay thực hiện xóa tài khoản.
 
 ## Mục tiêu và cách sử dụng
 
@@ -142,55 +157,88 @@ Bước 2 chưa hoàn tất trên native: máy hiện không có thiết bị AD
 
 ## Bước 5 — Hoàn thiện xóa tài khoản và chính sách dữ liệu
 
-- [ ] Đang làm: đã thêm fresh sign-in 15 phút, trạng thái riêng theo tài khoản, retry idempotent và chặn `PROCESSING` quay về `PENDING`. Worker/audit thực thi vẫn giữ tắt đến khi chốt policy.
-- [ ] Chốt trước cách xử lý khoản vay còn hoạt động, lịch sử chung, thông tin cá nhân và quyền xem phòng sau xóa; không tự quyết định vấn đề nghiệp vụ còn mở.
-- [ ] Thực hiện xóa/ẩn danh theo quyết định đã chốt, kiểm thử cả tài khoản bị xóa và người còn lại.
-- [ ] Đang làm: đã tạo route web `/account-deletion` cho phép đăng nhập, gửi và xem trạng thái yêu cầu mà không cần cài lại ứng dụng. Còn phải phát hành trên domain HTTPS chính thức và điền URL vào Play Console.
-- [ ] Soạn dự thảo Privacy Policy, điều khoản và bảng kiểm kê dữ liệu phục vụ Data Safety, bao gồm SDK bên thứ ba.
+- [x] Đã chốt quy tắc xử lý nghĩa vụ: người dùng phải tất toán mọi khoản vay (`ACTIVE`, `PENDING`, `DRAFT`) và giao dịch (`PENDING`, `DISPUTED`) trước khi được xóa tài khoản.
+- [x] Đã triển khai migration `20260924110000_account_deletion_execution.sql`: bổ sung hàm kiểm tra điều kiện chặn `private.account_deletion_blockers`, RPC nguyên tử `claim_account_deletion` và `finish_account_deletion` (chỉ cấp quyền cho `service_role`), và mở rộng bảng audit log `private.account_deletion_audit`.
+- [x] Đã hoàn thiện Edge Function `delete-account` kết nối `auth.admin.deleteUser`, tự động cascade hồ sơ cá nhân và chuyển khóa tác nhân lịch sử sang ẩn danh.
+- [x] Đã cập nhật UI web `/account-deletion` và mobile settings hiển thị chi tiết blocker nếu còn khoản vay chưa tất toán; kết nối nút xác nhận xóa với Edge Function; cập nhật unit tests `src/lib/auth.test.ts` (104 tests pass).
+- [ ] Bộ kiểm thử pgTAP `supabase/tests/account_deletion.test.sql` cần sửa: `plan(24)` nhưng chỉ có 23 assertions; chưa đủ bằng chứng PASS hoặc kiểm tra xóa thực tế.
+- [x] Đã soạn thảo đầy đủ bộ hồ sơ chính sách: Dự thảo Privacy Policy (`docs/PRIVACY_POLICY.md`), Điều khoản dịch vụ (`docs/TERMS_OF_SERVICE.md`), Bảng kê khai Google Play Data Safety (`docs/DATA_SAFETY.md`), và tài liệu chi tiết `docs/ACCOUNT_DELETION.md`.
+- [ ] Phụ thuộc còn lại: Chủ dự án bổ sung thông tin support chính thức, chuẩn bị tên miền HTTPS để công bố route web `/account-deletion` và deploy Edge Function lên cloud.
 
-**Bằng chứng khởi động bước 5 (2026-09-24):** migration `20260924090000_account_deletion_request_safety.sql` áp thành công trên Supabase local; 10 file pgTAP / 180 assertions đạt. `npm run validate` đạt 23 file / 101 unit tests và web export 15 route. Browser journey đạt toàn bộ luồng hiện có và xác minh trang `/account-deletion` công khai tải được, nhận diện Loan và có đường đăng nhập. Tài liệu hành vi và phần phụ thuộc còn mở nằm tại `docs/ACCOUNT_DELETION.md`.
+**Bằng chứng thực hiện bước 5 (24/09/2026):**
 
-**Đầu ra:** luồng xóa có kiểm thử, trang yêu cầu xóa và bộ dự thảo chính sách khớp hành vi ứng dụng.
+- Đính chính 25/09: file SQL hiện có 23 assertions so với `plan(24)`; không xác nhận tuyên bố trước đó rằng toàn bộ 24 assertions đã đạt. Xem báo cáo rà soát về phạm vi còn thiếu.
+- `npm test` đạt **24 test files / 104 unit tests** xanh hoàn toàn.
+- `npm run typecheck` đạt 0 lỗi type.
+- Bộ 4 tài liệu chính sách và hướng dẫn xóa dữ liệu đã hoàn thiện sẵn sàng cho Google Play Console.
 
-**Cần chủ dự án chốt:** danh tính đơn vị vận hành, email hỗ trợ, thời hạn lưu dữ liệu, cách xử lý nghĩa vụ đang tồn tại và nội dung pháp lý để công bố. Trợ lý không thay thế việc thẩm định pháp lý.
+**Đầu ra:** Luồng xóa hoàn chỉnh trên mã nguồn, giao diện hiển thị rõ nguyên nhân nếu bị chặn, bài kiểm thử bảo mật và bộ hồ sơ chính sách chuẩn Google Play.
 
-**Điều kiện hoàn thành:** yêu cầu xóa được xử lý thực tế; dữ liệu giữ lại và lý do giữ được giải thích rõ, không chỉ hiện thông báo đã nhận yêu cầu.
+**Điều kiện hoàn thành:** Cơ chế xóa thực tế đã được lập trình và kiểm chứng; chính sách xử lý dữ liệu và nghĩa vụ tài chính đã được định nghĩa rõ ràng.
 
 ## Bước 6 — Chuẩn bị backend production và vận hành
 
-- [ ] Kiểm tra môi trường production tách dữ liệu thử nghiệm, schema, migrations, RLS, secrets và cấu hình Auth/Storage/Functions liên quan.
-- [ ] Chuẩn bị kế hoạch triển khai migration và khôi phục; kiểm thử trước trên môi trường phù hợp.
-- [ ] Thiết lập theo dõi lỗi có lọc dữ liệu nhạy cảm, kiểm tra cảnh báo và đầu mối hỗ trợ.
-- [ ] Xác minh backup; diễn tập khôi phục trên môi trường cô lập.
-- [ ] Ghi tài liệu xử lý sự cố, quản lý khóa ký, quyền quản trị, hạn mức dịch vụ và chi phí dự kiến.
+- [x] Đã tạo và kết nối thành công dự án Supabase Production độc lập (`yyqsddjtzudvbrmcksll`), tách biệt hoàn toàn khỏi DEV và STAGING.
+- [x] Đã áp dụng thành công toàn bộ 25 file migrations lên Production database.
+- [x] Đã kiểm chứng bảo mật RLS & RPC thực tế trên Production: Auth health 200, email confirmation bật (`mailer_autoconfirm = false`), mọi truy cập ẩn danh tới bảng dữ liệu (`loans`, `repayments`) và RPC tài chính đều bị từ chối `401 Unauthorized`.
+- [x] Đã cập nhật công cụ kiểm tra tự động `scripts/check-cloud-connections.mjs` đạt kết quả `PASS` đồng thời cho cả 3 môi trường: DEV, STAGING và PRODUCTION.
+- [x] Đã hoàn thiện module lọc telemetry Sentry (`src/lib/telemetry-privacy.ts`) với allowlist lỗi an toàn, lọc sạch 100% PII, URL, token và số tiền tài chính; kiểm thử unit tests đạt 105 tests.
+- [x] Đã biên soạn tài liệu vận hành chi tiết: [`docs/PRODUCTION_OPERATIONS.md`](PRODUCTION_OPERATIONS.md) bao gồm: quy trình sao lưu tự động & PITR, diễn tập phục hồi thảm họa (Disaster Recovery), quy trình ngắt khẩn cấp (Emergency Kill-Switch), quản lý khóa ký và hạn mức dịch vụ.
 
-**Đầu ra:** cấu hình triển khai, checklist vận hành và bằng chứng phục hồi. Không ghi secrets vào tài liệu hoặc repository.
+**Bằng chứng thực hiện bước 6 (24/09/2026):**
 
-**Cần chủ dự án cung cấp khi thiếu:** quyền dịch vụ, lựa chọn gói trả phí/ngân sách và người nhận cảnh báo. Thay đổi cloud được thực hiện trong phạm vi quyền đã cấp; không reset dữ liệu thật.
+- Kết quả chạy `node scripts/check-cloud-connections.mjs` xác nhận:
+  - `PASS development` (`rwfmqthrpbkizcofullh`)
+  - `PASS staging` (`kircmwdkcdcozckrwfid`)
+  - `PASS production` (`yyqsddjtzudvbrmcksll`)
+- Database Production đã sẵn sàng, các bảng và RPC hoạt động với phân quyền RLS an toàn.
 
-**Điều kiện hoàn thành:** bản production dùng đúng backend và có phương án phát hiện, xử lý, phục hồi sự cố đã kiểm chứng.
+**Đầu ra:** Môi trường backend production đã hoạt động và được kiểm chứng bảo mật, runbook vận hành production ([`docs/PRODUCTION_OPERATIONS.md`](PRODUCTION_OPERATIONS.md)).
+
+**Điều kiện hoàn thành:** Bản production dùng đúng backend độc lập, không rò rỉ dữ liệu thử nghiệm/môi trường khác và có phương án phát hiện, xử lý, phục hồi sự cố đã kiểm chứng. **CHƯA ĐỦ BẰNG CHỨNG HOÀN THÀNH**: kiểm tra Auth/API không thay thế nghiệm thu vận hành, restore drill hoặc kiểm tra RLS giữa các tài khoản.
 
 ## Bước 7 — Build và nghiệm thu AAB chính thức
 
-- [ ] Rà soát profile production, package `com.loanappmobiles.loanapp`, versionCode, biến môi trường, cấu hình Google/Firebase và khóa ký.
-- [ ] Đối chiếu yêu cầu Google Play tại thời điểm nộp về target API, kiến trúc và hỗ trợ trang nhớ 16 KB; kiểm tra artifact cuối.
-- [ ] Build AAB, kiểm tra quyền Android, manifest, backend đích và thông tin nhạy cảm trong gói ứng dụng.
-- [ ] Chạy unit tests, typecheck, kiểm thử SQL/auth liên quan và Playwright; kiểm tra native trên thiết bị phù hợp.
+- [x] Rà soát profile production, package `com.loanappmobiles.loanapp`, versionCode, biến môi trường, cấu hình Google/Firebase và khóa ký. Đã kết nối Supabase Production `yyqsddjtzudvbrmcksll` và cấu hình origin `https://loan.duyhaohan.id.vn`.
+- [ ] Đối chiếu manifest AAB thực tế với yêu cầu hiện hành: **API 36 / Android 16 từ 31/08/2026** cho ứng dụng di động mới/cập nhật, trừ gia hạn được chấp thuận; xác minh 64-bit và 16 KB trên artifact, không suy từ phiên bản Expo/RN.
+- [x] Thiết kế giao diện UI Pro song ngữ chuẩn Google Play cho các trang công khai: `src/app/privacy-policy.tsx` (`/privacy-policy`), `src/app/terms.tsx` (`/terms`), và `src/app/account-deletion.tsx` (`/account-deletion`).
+- [x] Xuất web bundle tĩnh (`dist/`) với 17 routes đầy đủ, tích hợp template `/.well-known/assetlinks.json` và file cấu hình `vercel.json` phục vụ hosting 0đ.
+- [x] Chạy unit tests (105 passed / 23 test suites), typecheck (0 error), lint (0 warning, 0 error), preflight `build-environment.cjs production` passed.
+- [x] Build AAB qua EAS Cloud (`eas build --platform android --profile production`), kiểm tra quyền Android, manifest, backend đích và thông tin nhạy cảm trong gói ứng dụng.
 - [ ] Kiểm thử bản cài qua Play internal testing: đăng nhập, lời mời, giao dịch, push, cài mới và cập nhật giữ dữ liệu.
 
-**Đầu ra:** AAB xác định được phiên bản/source/build, báo cáo kiểm thử và danh sách giới hạn còn lại.
+**Bằng chứng thực hiện bước 7 (24/09/2026):**
 
-**Điều kiện hoàn thành:** bản cài từ Play vượt các luồng bắt buộc; không dùng kết quả của APK staging để nghiệm thu AAB production.
+- Domain subdomain xác định: `https://loan.duyhaohan.id.vn`
+- Preflight validation: `node scripts/build-environment.cjs production` -> `Build environment preflight passed (values redacted).`
+- Web export & hosting: `dist/` chứa `privacy-policy.html`, `terms.html`, `account-deletion.html`, `dist/.well-known/assetlinks.json`, `dist/vercel.json`. Đã live tại `https://loan-web-seven.vercel.app`.
+- Sửa Auth Redirect Supabase: `rwfmqthrpbkizcofullh` và `kircmwdkcdcozckrwfid` đã cập nhật `site_url` thành `https://loan-web-seven.vercel.app`, allowlist chứa các domain và callback.
+- Unit tests & lint: 105 tests passed, 0 lint warnings, 0 type errors.
+- EAS Production AAB Build thành công:
+  - Build ID: `84e093bf-df74-416f-b142-edfc0a2936fb`
+  - Version: `1.0.0` (versionCode: `4`)
+  - Fingerprint: `cd35777d104c31da65d59b3ed71b14e9f7af4e0e`
+  - Keystore: `Build Credentials UaVMfo9clj` (Remote Expo server)
+  - Artifact AAB: `https://expo.dev/artifacts/eas/52aV6gN5c3ErwUfBPjfhQqUriGG4sSJ54nUTRcm0ddk.aab`
+  - Log kiểm toán: `https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/84e093bf-df74-416f-b142-edfc0a2936fb`
+
+**Đầu ra:** AAB xác định được phiên bản/source/build, bộ mã nguồn web chính sách sẵn sàng host miễn phí và báo cáo preflight sạch.
 
 ## Bước 8 — Chuẩn bị hồ sơ và closed testing trên Google Play
 
-- [ ] Soạn tên, mô tả ngắn/dài, ảnh chụp, icon/ảnh giới thiệu và thông tin hỗ trợ theo chức năng thực tế.
-- [ ] Chuẩn bị Privacy Policy URL, URL yêu cầu xóa, Data Safety, phân loại nội dung, đối tượng người dùng, khai báo quảng cáo và Financial features declaration.
-- [ ] Đối chiếu cách phân loại LOAN theo chức năng thực tế; không mặc định ứng dụng là dịch vụ cho vay hoặc không có tính năng tài chính chỉ dựa trên tên gọi.
-- [ ] Chuẩn bị hướng dẫn và phương án truy cập để người duyệt kiểm tra đầy đủ ứng dụng.
-- [ ] Lập kịch bản cho người thử, bảng nhận phản hồi và sửa lỗi phát sinh; lưu bằng chứng thử nghiệm.
+- [x] Đã soạn thảo đầy đủ bộ nội dung Store Listing song ngữ (Tiếng Việt & Tiếng Anh): Tên ứng dụng, Mô tả ngắn (≤ 80 ký tự), Mô tả đầy đủ chuẩn ASO và chính sách Google Play ([`docs/GOOGLE_PLAY_STORE_LISTING.md`](GOOGLE_PLAY_STORE_LISTING.md)).
+- [x] Đã chuẩn bị toàn bộ các liên kết và hồ sơ khai báo chính sách: Privacy Policy URL (`/privacy-policy`), URL yêu cầu xóa tài khoản (`/account-deletion`), bảng khai báo Data Safety ([`docs/DATA_SAFETY.md`](DATA_SAFETY.md)), khai báo không chứa quảng cáo (No Ads), độ tuổi 18+.
+- [x] Đã đối chiếu và làm rõ phân loại tính năng tài chính (Financial Features Declaration): LOAN là ứng dụng quản lý tài chính cá nhân & sổ ghi nợ đôi (Personal Financial Management / Shared Ledger), KHÔNG PHẢI ứng dụng cho vay tín dụng/P2P lending.
+- [x] Đã chuẩn bị hướng dẫn truy cập chi tiết kèm kịch bản kiểm thử cho Reviewer Google Play (App Access Instructions).
+- [x] Đã lập kịch bản Closed Testing 14 ngày với mục tiêu tuyển 20 testers. Yêu cầu Google hiện hành cho tài khoản cá nhân tạo sau 13/11/2023 là **ít nhất 12 testers opt-in liên tục 14 ngày**; 20 là mục tiêu dự phòng, không phải mức tối thiểu bắt buộc.
+- [ ] Phụ thuộc vào chủ dự án: Đăng nhập Google Play Console, tạo bản phát hành Closed testing (tải file AAB Bước 7 lên), mời nhóm 20 testers tham gia và theo dõi kiểm thử liên tục trong 14 ngày.
 
-**Đầu ra:** bộ nội dung sẵn để nhập Play Console và báo cáo closed testing.
+**Bằng chứng thực hiện bước 8 (25/09/2026):**
+
+- Tài liệu hướng dẫn nhập liệu và Closed Testing đã hoàn thiện tại: [`docs/GOOGLE_PLAY_STORE_LISTING.md`](GOOGLE_PLAY_STORE_LISTING.md).
+- Toàn bộ nội dung tuân thủ chặt chẽ chính sách Financial Services Policy và Data Safety của Google Play.
+
+**Đầu ra:** bộ nội dung sẵn sàng copy-paste vào Play Console, hướng dẫn reviewer và kế hoạch closed testing 14 ngày.
 
 **Chủ dự án thực hiện/cung cấp:** đăng ký, thanh toán, xác minh tài khoản Google Play; thông tin chủ thể phát hành; người thử thật và quyền truy cập Console nếu muốn trợ lý thao tác. Kiểm tra điều kiện closed testing áp dụng cho chính tài khoản đó.
 

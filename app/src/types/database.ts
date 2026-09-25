@@ -118,6 +118,7 @@ export type Database = {
       };
       request_account_deletion: { Args: Record<PropertyKey, never>; Returns: Json };
       get_my_account_deletion_request: { Args: Record<PropertyKey, never>; Returns: Json };
+      get_my_account_deletion_state: { Args: Record<PropertyKey, never>; Returns: Json };
     };
     Enums: { loan_role: 'LENDER' | 'BORROWER' };
     CompositeTypes: Record<string, never>;

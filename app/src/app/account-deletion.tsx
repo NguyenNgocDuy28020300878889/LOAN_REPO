@@ -2,6 +2,7 @@ import { ActivityIndicator, Platform } from 'react-native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { Alert } from '@/lib/alert';
 
 import {
   Button,
@@ -14,12 +15,7 @@ import {
   usePalette,
 } from '@/components/loan-ui';
 import { accountKey } from '@/lib/account-boundary';
-import {
-  getAccountDeletionRequest,
-  requestAccountDeletion,
-  signOut,
-  type AccountDeletionRequest,
-} from '@/lib/auth';
+import { deleteAccount, getAccountDeletionState, signOut } from '@/lib/auth';
 import { useAuthStore } from '@/stores/auth-store';
 
 function needsFreshSignIn(error: unknown) {
@@ -40,20 +36,24 @@ export default function AccountDeletionScreen() {
   const queryKey = accountKey(session?.user.id, 'account-deletion');
   const deletion = useQuery({
     queryKey,
-    queryFn: getAccountDeletionRequest,
+    queryFn: getAccountDeletionState,
     enabled: Boolean(session),
   });
   const request = useMutation({
-    mutationFn: requestAccountDeletion,
-    onSuccess: (data) => queryClient.setQueryData(queryKey, data),
+    mutationFn: deleteAccount,
+    onSuccess: () => {
+      queryClient.clear();
+      Alert.alert(t('appName'), t('deletion.completed'));
+      router.replace('/');
+    },
   });
   const reauthenticate = useMutation({
     mutationFn: signOut,
     onSuccess: () => router.replace('/auth?returnTo=%2Faccount-deletion'),
   });
-  const current = (request.data ?? deletion.data) as AccountDeletionRequest | null | undefined;
-  const active = current?.status === 'PENDING' || current?.status === 'PROCESSING';
+  const current = deletion.data?.request;
   const requestError = request.error;
+  const blocked = deletion.data && !deletion.data.eligible;
 
   return (
     <Screen>
@@ -63,7 +63,7 @@ export default function AccountDeletionScreen() {
         <Section>{t('deletion.whatHappens')}</Section>
         <Label>{t('deletion.profileRemoved')}</Label>
         <Label>{t('deletion.sharedHistory')}</Label>
-        <Label>{t('deletion.processingPending')}</Label>
+        <Label>{t('deletion.activeLoansBlock')}</Label>
       </Card>
       {!session ? (
         <Card>
@@ -88,8 +88,24 @@ export default function AccountDeletionScreen() {
         <Card>
           <Section>{t('deletion.request')}</Section>
           {current && (
-            <Notice tone={current.status === 'FAILED' ? 'danger' : active ? 'warning' : undefined}>
+            <Notice
+              tone={
+                current.status === 'FAILED'
+                  ? 'danger'
+                  : current.status === 'PENDING' || current.status === 'PROCESSING'
+                    ? 'warning'
+                    : undefined
+              }
+            >
               {t(`deletion.status.${current.status}`)}
+            </Notice>
+          )}
+          {blocked && (
+            <Notice tone="warning">
+              {t('deletion.blocked', {
+                loans: deletion.data.blocking_loan_count,
+                repayments: deletion.data.blocking_repayment_count,
+              })}
             </Notice>
           )}
           <Label muted>{t('deletion.confirmation')}</Label>
@@ -108,10 +124,19 @@ export default function AccountDeletionScreen() {
           ) : (
             <Button
               kind="danger"
-              label={t(active ? 'deletion.requestRecorded' : 'deletion.submit')}
+              label={t(current ? 'deletion.retry' : 'deletion.submit')}
               loading={request.isPending}
-              disabled={active}
-              onPress={() => request.mutate()}
+              disabled={Boolean(blocked)}
+              onPress={() =>
+                Alert.alert(t('deletion.title'), t('deletion.finalWarning'), [
+                  { text: t('loan.cancel'), style: 'cancel' },
+                  {
+                    text: t('deletion.confirmDelete'),
+                    style: 'destructive',
+                    onPress: () => request.mutate(),
+                  },
+                ])
+              }
             />
           )}
         </Card>

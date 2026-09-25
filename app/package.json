@@ -74,6 +74,7 @@
     "db:start": "supabase start",
     "db:test": "supabase test db --local",
     "db:test:concurrency": "node scripts/test-db-concurrency.mjs",
+    "test:account-deletion:local": "node scripts/test-account-deletion-local.mjs",
     "test:auth:local": "node scripts/test-local-auth.mjs",
     "test:otp:local": "node scripts/test-email-otp-local.mjs",
     "test:browser:local": "node scripts/test-browser-journey.mjs",

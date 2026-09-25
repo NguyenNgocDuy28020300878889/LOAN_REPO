@@ -145,7 +145,7 @@ export default function HomeScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const session = useAuthStore((state) => state.session);
-  const [filter, setFilter] = useState<'ALL' | 'LENDER' | 'BORROWER'>('ALL');
+  const [filter, setFilter] = useState<'ALL' | 'LENDER' | 'BORROWER' | 'PENDING'>('ALL');
   const [search, setSearch] = useState('');
   const loans = useQuery({
     queryKey: accountKey(session?.user.id, 'loans'),
@@ -171,7 +171,8 @@ export default function HomeScreen() {
     () =>
       loans.data?.filter(
         (loan) =>
-          (filter === 'ALL' || loan.my_role === filter) &&
+          (filter === 'ALL' ||
+            (filter === 'PENDING' ? loan.status === 'PENDING' : loan.my_role === filter)) &&
           (loan.purpose || t('loan.sharedLoan'))
             .toLocaleLowerCase()
             .includes(search.trim().toLocaleLowerCase()),
@@ -235,19 +236,52 @@ export default function HomeScreen() {
             </View>
             {session && pendingInvites.data && pendingInvites.data.length > 0 ? (
               <View style={{ gap: 12 }}>
-                <Text accessibilityRole="header" style={[base.fieldLabel, { color: p.primary }]}>
-                  {t('loan.pendingInvitesTitle')} ({pendingInvites.data.length})
-                </Text>
+                <View style={styles.between}>
+                  <Text
+                    accessibilityRole="header"
+                    style={[base.fieldLabel, { color: p.primary, fontWeight: '700' }]}
+                  >
+                    {t('loan.pendingInvitesTitle')} ({pendingInvites.data.length})
+                  </Text>
+                  <Text style={[base.caption, { color: p.muted }]}>{t('loan.tapToReview')}</Text>
+                </View>
                 {pendingInvites.data.map((inv) => (
                   <PendingInviteCard key={inv.loan_id} invite={inv} />
                 ))}
+                <Button
+                  kind="secondary"
+                  label={t('loan.openInvite')}
+                  onPress={() => router.push('/open-invite')}
+                />
               </View>
-            ) : null}
-            <Button
-              kind="secondary"
-              label={t('loan.openInvite')}
-              onPress={() => router.push('/open-invite')}
-            />
+            ) : session ? (
+              <Card>
+                <View style={[base.row, { gap: 12, alignItems: 'center' }]}>
+                  <View style={[styles.roleIcon, { backgroundColor: p.soft }]}>
+                    <Icon name="document" color={p.primary} size={20} />
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={[base.fieldLabel, { color: p.text, fontWeight: '700' }]}>
+                      {t('loan.inviteSectionTitle')}
+                    </Text>
+                    <Text style={[base.caption, { color: p.muted }]}>
+                      {t('loan.noPendingInvitesHint')}
+                    </Text>
+                  </View>
+                </View>
+                <Button
+                  kind="secondary"
+                  label={t('loan.openInvite')}
+                  onPress={() => router.push('/open-invite')}
+                />
+              </Card>
+            ) : (
+              <Button
+                kind="secondary"
+                label={t('loan.openInvite')}
+                onPress={() => router.push('/open-invite')}
+              />
+            )}
             {session && loans.data && !loans.isError && loans.data.length > 0 ? (
               <View style={[styles.overview, { backgroundColor: p.hero }]}>
                 <View style={styles.between}>
@@ -266,9 +300,23 @@ export default function HomeScreen() {
                     { borderTopWidth: 1, borderColor: '#426454', paddingTop: 16 },
                   ]}
                 >
-                  <Text style={[base.caption, { color: p.heroMuted }]}>
-                    {t('ui.pendingCount', { count: counts.pending })}
-                  </Text>
+                  <Pressable
+                    onPress={() => setFilter(filter === 'PENDING' ? 'ALL' : 'PENDING')}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('ui.pendingCount', { count: counts.pending })}
+                  >
+                    <Text
+                      style={[
+                        base.caption,
+                        {
+                          color: filter === 'PENDING' ? p.accent : p.heroMuted,
+                          textDecorationLine: counts.pending > 0 ? 'underline' : 'none',
+                        },
+                      ]}
+                    >
+                      {t('ui.pendingCount', { count: counts.pending })}
+                    </Text>
+                  </Pressable>
                   <Text style={[base.caption, { color: p.accent }]}>
                     {t('ui.repaidCount', { count: counts.repaid })}
                   </Text>
@@ -289,7 +337,7 @@ export default function HomeScreen() {
                   accessibilityLabel={t('ui.filterLoans')}
                   style={[styles.filters, { backgroundColor: p.soft }]}
                 >
-                  {(['ALL', 'LENDER', 'BORROWER'] as const).map((value) => (
+                  {(['ALL', 'LENDER', 'BORROWER', 'PENDING'] as const).map((value) => (
                     <Pressable
                       key={value}
                       accessibilityRole="radio"
@@ -311,13 +359,13 @@ export default function HomeScreen() {
                           { color: filter === value ? p.primary : p.muted, textAlign: 'center' },
                         ]}
                       >
-                        {t(
-                          value === 'ALL'
-                            ? 'ui.all'
-                            : value === 'LENDER'
-                              ? 'ui.lending'
-                              : 'ui.borrowing',
-                        )}
+                        {value === 'ALL'
+                          ? t('ui.all')
+                          : value === 'LENDER'
+                            ? t('ui.lending')
+                            : value === 'BORROWER'
+                              ? t('ui.borrowing')
+                              : t('loan.pendingFilter')}
                       </Text>
                     </Pressable>
                   ))}

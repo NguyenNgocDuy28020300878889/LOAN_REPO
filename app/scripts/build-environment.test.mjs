@@ -18,6 +18,12 @@ const legacy = (payload) =>
 describe('build environment release gate', () => {
   it('accepts explicit production config without returning credentials', () => {
     expect(guards.validateBuildEnvironment(valid, 'production')).toEqual([]);
+    const customSchemeOnly = {
+      ...valid,
+      EXPO_PUBLIC_APP_LINK_ORIGIN: undefined,
+      ALLOW_CUSTOM_SCHEME_ONLY_DEEP_LINKING: 'true',
+    };
+    expect(guards.validateBuildEnvironment(customSchemeOnly, 'production')).toEqual([]);
   });
   it('rejects missing profile, environment or credentials instead of falling back to DEV', () => {
     for (const values of [
