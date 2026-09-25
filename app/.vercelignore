@@ -1,0 +1,12 @@
+node_modules
+.expo
+android
+ios
+supabase
+scripts
+src
+docs
+.local
+coverage
+__pycache__
+*.log
