@@ -48,3 +48,5 @@ example
 
 # Supabase CLI local link metadata
 supabase/.temp/
+
+.vercel
