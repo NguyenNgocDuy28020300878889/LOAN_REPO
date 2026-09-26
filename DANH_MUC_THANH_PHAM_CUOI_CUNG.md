@@ -37,7 +37,11 @@
   - Package ID: `com.loanappmobiles.loanapp` (Production) & `com.loanappmobiles.loanapp.staging` (Staging).
   - Target API: Hỗ trợ Android 12–15+ (chuẩn bị API 35/36).
   - Deep Linking & App Links: Cấu hình `loan.duyhaohan.id.vn` với intent filters cho mở link tự động.
-  - Phân quyền tối giản (Least Privilege): Loại bỏ hoàn toàn các quyền truy cập nguy hiểm, không yêu cầu camera/danh bạ/bộ nhớ ngoài khi không cần thiết.
+  - Phân quyền tối giản (Least Privilege): Loại bỏ hoàn toàn các quyền truy cập nguy hiểm, không yêu cầu camera/danh bạ/bộ nhớ ngoài.
+  - **Tối ưu hóa dung lượng (Đã áp dụng commit `97c2c2b` & `65ce941`):** Gỡ bỏ Reanimated, Worklets, Gesture Handler, Expo Image và cô lập `expo-dev-client` (loại bỏ thư viện quét mã Barcode MLKit nặng 19MB khỏi staging và production).
+- **Các bản Build Cloud đang kích hoạt (Mới nhất 26/09/2026):**
+  - **Bản APK Staging (VersionCode 11):** [EAS Build 47eae1b1](https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/47eae1b1-1e00-4c03-a286-e6d8af539f6b) — File cài đặt độc lập kiểm thử nội bộ.
+  - **Bản AAB Production (VersionCode 5):** [EAS Build 95c7c458](https://expo.dev/accounts/loanappmobiles-team/projects/loanapp/builds/95c7c458-483d-4458-a267-0126797328c4) — Gói Android App Bundle chính thức nộp Google Play Console.
 
 ---
 
