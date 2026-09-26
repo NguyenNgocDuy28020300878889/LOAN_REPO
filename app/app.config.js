@@ -70,7 +70,7 @@ module.exports = ({ config }) => {
     plugins: [
       ...(config.plugins ?? []),
       ['expo-notifications', { defaultChannel: 'loan-updates' }],
-      ['expo-dev-client', { addGeneratedScheme: appEnv === 'development' }],
+      ...(appEnv === 'development' ? [['expo-dev-client', { addGeneratedScheme: true }]] : []),
       ['expo-secure-store', { configureAndroidBackup: true }],
     ],
   };
